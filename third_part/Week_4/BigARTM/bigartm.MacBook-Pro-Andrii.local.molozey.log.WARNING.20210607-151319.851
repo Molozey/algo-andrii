@@ -1,0 +1,8 @@
+Log file created at: 2021/06/07 15:13:19
+Running on machine: MacBook-Pro-Andrii.local
+Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
+W0607 15:13:19.597906 99389440 helpers.cc:221] File already exists: school_batches/aaaaaa.batch
+W0607 15:13:19.610462 98852864 helpers.cc:221] File already exists: school_batches/aaaaab.batch
+W0607 15:13:19.634652 100462592 helpers.cc:221] File already exists: school_batches/aaaaad.batch
+W0607 15:13:19.647572 99926016 helpers.cc:221] File already exists: school_batches/aaaaac.batch
+W0607 15:13:19.674536 99389440 helpers.cc:221] File already exists: school_batches/aaaaae.batch

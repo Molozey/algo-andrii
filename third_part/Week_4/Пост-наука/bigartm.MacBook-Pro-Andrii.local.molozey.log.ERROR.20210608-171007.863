@@ -1,0 +1,4 @@
+Log file created at: 2021/06/08 17:10:07
+Running on machine: MacBook-Pro-Andrii.local
+Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
+E0608 17:10:07.218696 252818880 c_interface.cc:59] InvalidOperation :  ArtmReconfigureMasterModel can not change number of topics; use ArtmReconfigureTopicName

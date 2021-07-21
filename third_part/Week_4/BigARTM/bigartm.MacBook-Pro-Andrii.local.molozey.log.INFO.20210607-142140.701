@@ -1,0 +1,44 @@
+Log file created at: 2021/06/07 14:21:40
+Running on machine: MacBook-Pro-Andrii.local
+Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
+I0607 14:21:40.356330 154686912 c_interface.cc:127] Logging enabled to .
+I0607 14:21:40.356689 154686912 c_interface.cc:128] BigARTM version: v0.10.0
+I0607 14:21:40.356739 154686912 c_interface.cc:271] Pass MasterModelConfig: topic_name_size=0, score_config_size=1, num_processors=0, pwt_name=pwt, nwt_name=nwt, num_document_passes=0, reuse_theta=no, cache_theta=no, opt_for_avx=yes, disk_cache_path= to ArtmCreateMasterModel
+I0607 14:21:40.356946 154686912 c_interface.cc:274] Creating MasterModel (id=1)...
+I0607 14:21:59.042924 154686912 c_interface.cc:271] Pass MasterModelConfig: topic_name_size=0, score_config_size=1, num_processors=0, pwt_name=pwt, nwt_name=nwt, num_document_passes=0, reuse_theta=no, cache_theta=no, opt_for_avx=yes, disk_cache_path= to ArtmCreateMasterModel
+I0607 14:21:59.042999 154686912 c_interface.cc:274] Creating MasterModel (id=2)...
+I0607 14:21:59.047713 154686912 collection_parser.cc:771] CollectionParserConfig.num_threads is automatically set to 4
+I0607 14:21:59.196050 154686912 c_interface.cc:375] Pass 482410fe-dc4f-4694-badd-e23b6d813b2a to MN4artm4core15MasterComponentEFvRKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEE
+I0607 14:21:59.197233 154686912 c_interface.cc:389] Pass GatherDictionaryArgs: dictionary_target_name=482410fe-dc4f-4694-badd-e23b6d813b2a, data_path=school_batches, symmetric_cooc_values=0 to MN4artm4core15MasterComponentEFvRKNS_20GatherDictionaryArgsEE
+I0607 14:21:59.198323 154686912 dictionary_operations.cc:265] Found 5 batches in 'school_batches' folder
+I0607 14:21:59.224973 154686912 dictionary_operations.cc:331] Find 16099 unique tokens in 476 items
+I0607 14:21:59.241534 154686912 dictionary_operations.cc:611] Dictionary name='482410fe-dc4f-4694-badd-e23b6d813b2a' contains entries: text:16099; 
+I0607 14:23:18.901616 154686912 c_interface.cc:375] Pass 482410fe-dc4f-4694-badd-e23b6d813b2a to MN4artm4core15MasterComponentEFvRKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEE
+I0607 14:23:18.912389 154686912 c_interface.cc:339] Disposing MasterComponent (id=2)...
+I0607 14:30:28.001598 154686912 c_interface.cc:271] Pass MasterModelConfig: topic_name_size=10, score_config_size=1, num_processors=0, pwt_name=pwt, nwt_name=nwt, num_document_passes=10, reuse_theta=no, cache_theta=no, opt_for_avx=yes, disk_cache_path= to ArtmCreateMasterModel
+I0607 14:30:28.002498 154686912 instance.cc:401] MasterModelConfig.processors_count is automatically set to 4
+I0607 14:30:28.003104 204800000 processor.cc:58] Processor thread started
+I0607 14:30:28.003270 205336576 processor.cc:58] Processor thread started
+I0607 14:30:28.003309 154686912 c_interface.cc:274] Creating MasterModel (id=3)...
+I0607 14:30:28.003286 205873152 processor.cc:58] Processor thread started
+I0607 14:30:28.003335 206409728 processor.cc:58] Processor thread started
+I0607 14:30:28.029109 205336576 processor.cc:74] No data in processing queue, waiting...
+I0607 14:30:28.029908 205873152 processor.cc:74] No data in processing queue, waiting...
+I0607 14:30:28.030452 204800000 processor.cc:74] No data in processing queue, waiting...
+I0607 14:30:28.030570 206409728 processor.cc:74] No data in processing queue, waiting...
+I0607 14:30:28.044543 154686912 c_interface.cc:231] ArtmCopyRequestedMessage is copying 217 bytes...
+I0607 14:41:02.759881 154686912 c_interface.cc:389] Pass MasterModelConfig: topic_name_size=10, score_config_size=2, num_processors=0, pwt_name=pwt, nwt_name=nwt, num_document_passes=10, reuse_theta=no, cache_theta=no, opt_for_avx=yes, disk_cache_path= to MN4artm4core15MasterComponentEFvRKNS_17MasterModelConfigEE
+I0607 14:41:02.760186 154686912 instance.cc:401] MasterModelConfig.processors_count is automatically set to 4
+I0607 14:41:02.761874 154686912 perplexity.cc:27] Perplexity score calculator created: model_type=1, dictionary_name=dictionary
+I0607 14:41:02.802898 154686912 c_interface.cc:231] ArtmCopyRequestedMessage is copying 305 bytes...
+I0607 14:44:56.128211 154686912 c_interface.cc:375] Pass 21fd8fb1-441e-46ab-a55e-74d11a8db399 to MN4artm4core15MasterComponentEFvRKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEE
+I0607 14:44:56.128403 154686912 c_interface.cc:339] Disposing MasterComponent (id=1)...
+I0607 14:44:56.217603 206409728 processor.cc:66] Processor thread stopped
+I0607 14:44:56.217625 206409728 processor.cc:67] Total number of processed batches: 0
+I0607 14:44:56.220052 205873152 processor.cc:66] Processor thread stopped
+I0607 14:44:56.220078 205873152 processor.cc:67] Total number of processed batches: 0
+I0607 14:44:56.221521 205336576 processor.cc:66] Processor thread stopped
+I0607 14:44:56.221554 205336576 processor.cc:67] Total number of processed batches: 0
+I0607 14:44:56.222823 204800000 processor.cc:66] Processor thread stopped
+I0607 14:44:56.222848 204800000 processor.cc:67] Total number of processed batches: 0
+I0607 14:44:56.223393 154686912 c_interface.cc:339] Disposing MasterComponent (id=3)...

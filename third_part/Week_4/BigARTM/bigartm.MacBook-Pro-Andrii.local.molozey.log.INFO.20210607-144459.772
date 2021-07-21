@@ -1,0 +1,72 @@
+Log file created at: 2021/06/07 14:44:59
+Running on machine: MacBook-Pro-Andrii.local
+Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
+I0607 14:44:59.263229 439899584 c_interface.cc:127] Logging enabled to .
+I0607 14:44:59.263608 439899584 c_interface.cc:128] BigARTM version: v0.10.0
+I0607 14:44:59.263653 439899584 c_interface.cc:271] Pass MasterModelConfig: topic_name_size=0, score_config_size=1, num_processors=0, pwt_name=pwt, nwt_name=nwt, num_document_passes=0, reuse_theta=no, cache_theta=no, opt_for_avx=yes, disk_cache_path= to ArtmCreateMasterModel
+I0607 14:44:59.263682 439899584 c_interface.cc:274] Creating MasterModel (id=1)...
+I0607 14:44:59.264231 439899584 collection_parser.cc:771] CollectionParserConfig.num_threads is automatically set to 4
+W0607 14:44:59.337942 336138240 helpers.cc:221] File already exists: school_batches/aaaaaa.batch
+W0607 14:44:59.354033 337211392 helpers.cc:221] File already exists: school_batches/aaaaac.batch
+W0607 14:44:59.365787 336674816 helpers.cc:221] File already exists: school_batches/aaaaab.batch
+W0607 14:44:59.378230 337747968 helpers.cc:221] File already exists: school_batches/aaaaad.batch
+W0607 14:44:59.400377 336138240 helpers.cc:221] File already exists: school_batches/aaaaae.batch
+I0607 14:44:59.410686 439899584 c_interface.cc:375] Pass 2e9e051d-443c-4331-9336-33f4ad0354cf to MN4artm4core15MasterComponentEFvRKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEE
+I0607 14:44:59.410796 439899584 c_interface.cc:389] Pass GatherDictionaryArgs: dictionary_target_name=2e9e051d-443c-4331-9336-33f4ad0354cf, data_path=school_batches, symmetric_cooc_values=0 to MN4artm4core15MasterComponentEFvRKNS_20GatherDictionaryArgsEE
+I0607 14:44:59.410892 439899584 dictionary_operations.cc:265] Found 5 batches in 'school_batches' folder
+I0607 14:44:59.438247 439899584 dictionary_operations.cc:331] Find 16099 unique tokens in 476 items
+I0607 14:44:59.452191 439899584 dictionary_operations.cc:611] Dictionary name='2e9e051d-443c-4331-9336-33f4ad0354cf' contains entries: text:16099; 
+I0607 14:44:59.457998 439899584 c_interface.cc:375] Pass 2e9e051d-443c-4331-9336-33f4ad0354cf to MN4artm4core15MasterComponentEFvRKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEE
+I0607 14:44:59.461042 439899584 c_interface.cc:339] Disposing MasterComponent (id=1)...
+I0607 14:44:59.466797 439899584 c_interface.cc:271] Pass MasterModelConfig: topic_name_size=10, score_config_size=1, num_processors=0, pwt_name=pwt, nwt_name=nwt, num_document_passes=10, reuse_theta=no, cache_theta=no, opt_for_avx=yes, disk_cache_path= to ArtmCreateMasterModel
+I0607 14:44:59.466816 439899584 instance.cc:401] MasterModelConfig.processors_count is automatically set to 4
+I0607 14:44:59.466864 336138240 processor.cc:58] Processor thread started
+I0607 14:44:59.466876 336674816 processor.cc:58] Processor thread started
+I0607 14:44:59.466888 439899584 c_interface.cc:274] Creating MasterModel (id=2)...
+I0607 14:44:59.466884 337211392 processor.cc:58] Processor thread started
+I0607 14:44:59.466907 337747968 processor.cc:58] Processor thread started
+I0607 14:44:59.489606 336138240 processor.cc:74] No data in processing queue, waiting...
+I0607 14:44:59.489606 336674816 processor.cc:74] No data in processing queue, waiting...
+I0607 14:44:59.489636 337747968 processor.cc:74] No data in processing queue, waiting...
+I0607 14:44:59.489640 337211392 processor.cc:74] No data in processing queue, waiting...
+I0607 14:44:59.505929 439899584 c_interface.cc:389] Pass MasterModelConfig: topic_name_size=10, score_config_size=2, num_processors=0, pwt_name=pwt, nwt_name=nwt, num_document_passes=10, reuse_theta=no, cache_theta=no, opt_for_avx=yes, disk_cache_path= to MN4artm4core15MasterComponentEFvRKNS_17MasterModelConfigEE
+I0607 14:44:59.505950 439899584 instance.cc:401] MasterModelConfig.processors_count is automatically set to 4
+I0607 14:44:59.505964 439899584 perplexity.cc:27] Perplexity score calculator created: model_type=1, dictionary_name=dictionary
+I0607 14:44:59.506225 439899584 c_interface.cc:389] Pass MasterModelConfig: topic_name_size=10, score_config_size=3, num_processors=0, pwt_name=pwt, nwt_name=nwt, num_document_passes=10, reuse_theta=no, cache_theta=no, opt_for_avx=yes, disk_cache_path= to MN4artm4core15MasterComponentEFvRKNS_17MasterModelConfigEE
+I0607 14:44:59.506295 439899584 instance.cc:401] MasterModelConfig.processors_count is automatically set to 4
+I0607 14:44:59.506309 439899584 perplexity.cc:27] Perplexity score calculator created: model_type=1, dictionary_name=dictionary
+I0607 14:44:59.507148 439899584 c_interface.cc:389] Pass MasterModelConfig: topic_name_size=10, score_config_size=4, num_processors=0, pwt_name=pwt, nwt_name=nwt, num_document_passes=10, reuse_theta=no, cache_theta=no, opt_for_avx=yes, disk_cache_path= to MN4artm4core15MasterComponentEFvRKNS_17MasterModelConfigEE
+I0607 14:44:59.507164 439899584 instance.cc:401] MasterModelConfig.processors_count is automatically set to 4
+I0607 14:44:59.507175 439899584 perplexity.cc:27] Perplexity score calculator created: model_type=1, dictionary_name=dictionary
+I0607 14:44:59.507961 439899584 c_interface.cc:389] Pass MasterModelConfig: topic_name_size=10, score_config_size=5, num_processors=0, pwt_name=pwt, nwt_name=nwt, num_document_passes=10, reuse_theta=no, cache_theta=no, opt_for_avx=yes, disk_cache_path= to MN4artm4core15MasterComponentEFvRKNS_17MasterModelConfigEE
+I0607 14:44:59.507980 439899584 instance.cc:401] MasterModelConfig.processors_count is automatically set to 4
+I0607 14:44:59.507993 439899584 perplexity.cc:27] Perplexity score calculator created: model_type=1, dictionary_name=dictionary
+I0607 14:44:59.572892 439899584 c_interface.cc:231] ArtmCopyRequestedMessage is copying 539 bytes...
+I0607 14:45:44.119540 439899584 c_interface.cc:231] ArtmCopyRequestedMessage is copying 539 bytes...
+I0607 14:47:56.396400 439899584 c_interface.cc:271] Pass MasterModelConfig: topic_name_size=0, score_config_size=1, num_processors=0, pwt_name=pwt, nwt_name=nwt, num_document_passes=0, reuse_theta=no, cache_theta=no, opt_for_avx=yes, disk_cache_path= to ArtmCreateMasterModel
+I0607 14:47:56.396502 439899584 c_interface.cc:274] Creating MasterModel (id=3)...
+I0607 14:47:56.396772 439899584 c_interface.cc:375] Pass dictionary to MN4artm4core15MasterComponentEFvRKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEE
+I0607 14:47:56.397125 439899584 c_interface.cc:389] Pass GatherDictionaryArgs: dictionary_target_name=dictionary, data_path=school_batches, symmetric_cooc_values=0 to MN4artm4core15MasterComponentEFvRKNS_20GatherDictionaryArgsEE
+I0607 14:47:56.397315 439899584 dictionary_operations.cc:265] Found 5 batches in 'school_batches' folder
+I0607 14:47:56.452204 439899584 dictionary_operations.cc:331] Find 16099 unique tokens in 476 items
+I0607 14:47:56.466543 439899584 dictionary_operations.cc:611] Dictionary name='dictionary' contains entries: text:16099; 
+I0607 14:47:56.466745 439899584 c_interface.cc:375] Pass pwt to MN4artm4core15MasterComponentEFvRKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEE
+I0607 14:47:56.466764 439899584 c_interface.cc:375] Pass nwt to MN4artm4core15MasterComponentEFvRKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEE
+I0607 14:47:56.467661 439899584 c_interface.cc:389] Pass InitializeModelArgs: model_name=pwt, dictionary_name=dictionary, topic_name_size=10, seed=-1 to MN4artm4core15MasterComponentEFvRKNS_19InitializeModelArgsEE
+I0607 14:47:56.519078 439899584 master_component.cc:663] InitializeModel() created matrix pwt with 10 topics and 16099 tokens; 
+I0607 14:47:56.519287 439899584 c_interface.cc:389] Pass InitializeModelArgs: model_name=nwt, dictionary_name=dictionary, topic_name_size=10, seed=-1 to MN4artm4core15MasterComponentEFvRKNS_19InitializeModelArgsEE
+I0607 14:47:56.568684 439899584 master_component.cc:663] InitializeModel() created matrix nwt with 10 topics and 16099 tokens; 
+I0607 14:47:56.569490 439899584 c_interface.cc:231] ArtmCopyRequestedMessage is copying 326 bytes...
+I0607 14:47:56.607722 439899584 c_interface.cc:231] ArtmCopyRequestedMessage is copying 128 bytes...
+I0607 14:47:56.609117 439899584 c_interface.cc:231] ArtmCopyRequestedMessage is copying 655 bytes...
+I0607 14:47:58.429891 337747968 processor.cc:66] Processor thread stopped
+I0607 14:47:58.429910 337747968 processor.cc:67] Total number of processed batches: 0
+I0607 14:47:58.431354 337211392 processor.cc:66] Processor thread stopped
+I0607 14:47:58.431370 337211392 processor.cc:67] Total number of processed batches: 0
+I0607 14:47:58.432626 336674816 processor.cc:66] Processor thread stopped
+I0607 14:47:58.432652 336674816 processor.cc:67] Total number of processed batches: 0
+I0607 14:47:58.434023 336138240 processor.cc:66] Processor thread stopped
+I0607 14:47:58.434041 336138240 processor.cc:67] Total number of processed batches: 0
+I0607 14:47:58.454888 439899584 c_interface.cc:339] Disposing MasterComponent (id=2)...
+I0607 14:47:58.455121 439899584 c_interface.cc:375] Pass dictionary to MN4artm4core15MasterComponentEFvRKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEE
+I0607 14:47:58.459535 439899584 c_interface.cc:339] Disposing MasterComponent (id=3)...

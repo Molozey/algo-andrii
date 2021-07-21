@@ -1,0 +1,7 @@
+Log file created at: 2021/06/09 02:27:22
+Running on machine: MacBook-Pro-Andrii.local
+Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
+E0609 02:27:22.879562 62039488 c_interface.cc:59] InvalidOperation :  ArtmReconfigureMasterModel can not change number of topics; use ArtmReconfigureTopicName
+E0609 02:27:56.928104 62039488 c_interface.cc:59] InvalidOperation :  ArtmReconfigureMasterModel can not change number of topics; use ArtmReconfigureTopicName
+E0609 02:27:59.768092 62039488 c_interface.cc:59] InvalidOperation :  ArtmReconfigureMasterModel can not change number of topics; use ArtmReconfigureTopicName
+E0609 02:28:09.216379 62039488 c_interface.cc:59] InvalidOperation :  ArtmReconfigureMasterModel can not change number of topics; use ArtmReconfigureTopicName
