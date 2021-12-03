@@ -1,2 +1,5 @@
 /data-loader/__pycache__
 /*.csv
+/data-loader/*.csv
+/data-loader/.*
+/.vscode
