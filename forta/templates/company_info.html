@@ -1,0 +1,25 @@
+{% load static %}
+
+{% block content %}
+    {% block comp_header %}
+        {% include 'company_info_header.html' %}
+    {% endblock %}
+    {% block brief_info %}
+    {% endblock %}
+    {% block company_description %}
+    {% endblock %}
+    {% block price_dynamics %}
+    {% endblock %}
+    {% block month_price %}
+    {% endblock %}
+    {% block year_price %}
+    {% endblock %}
+    {% block five_year_price %}
+    {% endblock %}
+    {% block value_indicators %}
+    {% endblock %}
+    {% block fifa %}
+        <link rel="stylesheet" href="{% static "forta/FIFA_styles/css/apexcharts.css" %}">
+        {% include "FIFA.html" %}
+    {% endblock %}
+{% endblock %}

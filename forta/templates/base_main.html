@@ -1,0 +1,38 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'head_links.html' %}
+    <link rel="stylesheet" type="text/css" href="{% static 'forta/main.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'forta/navbar_styles/navbar_styles.css' %}">
+    <title>Names</title>
+</head>
+<body>
+<div class="main_part">
+    <div class="row">
+        {% block navigation_bar %}
+            {% include 'nav_bar.html'%}
+        {% endblock %}
+    </div>
+        <div class="row">
+            <div class="col-md-2" id="0to2">
+                {% block side_bar %}
+                    {% include 'side_bar.html'%}
+                {% endblock %}
+            </div>
+
+            <div class="col-md-10 company-card" id="2to12">
+                {% block company_list %}
+                    {% include 'main_company_list.html' %}
+                {% endblock %}
+            </div>
+        </div>
+
+        {% block bottom %}
+            {% include 'bottom.html' %}
+        {% endblock %}
+</div>
+
+</body>
+</html>

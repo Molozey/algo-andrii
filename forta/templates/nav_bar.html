@@ -1,0 +1,18 @@
+{% load static %}
+
+
+     <nav class="navbar fixed-top navbar-light justify-content-between mb-5" style="background-color: aliceblue">
+        <div class="col-md-2">
+            <a href= "{% url 'main' %}" class="navbar-brand">OVA co.</a>
+        </div>
+        <div class="col-md-5">
+        </div>
+
+         <div class="col-md-4">
+            {% include 'navbar_notifications.html' %}
+         </div>
+         <div class="col-md-1">
+            {% include 'navbar_personal_account.html' %}
+         </div>
+     </nav>
+

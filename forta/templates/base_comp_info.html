@@ -1,0 +1,37 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'head_links.html' %}
+    <link rel="stylesheet" type="text/css" href="{% static 'forta/company_info_styles/company_info.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'forta/nav_bar.css' %}">
+    <title>Advisor</title>
+</head>
+<body>
+    <div class="main_part">
+        <div class="row">
+            {% block navigation_bar %}
+                {% include 'nav_bar.html' %}
+            {% endblock %}
+        </div>
+
+        <div class="row">
+            <div class="col-md-2">
+                {% block side_bar %}
+                    {% include 'side_bar.html' %}
+                {% endblock %}
+            </div>
+            <div class="col-md-10">
+                {% block content %}
+                    {% include 'company_info.html' %}
+                {% endblock %}
+            </div>
+        </div>
+
+        {% block bottom %}
+            {% include 'bottom.html' %}
+        {% endblock %}
+    </div>
+</body>
+</html>

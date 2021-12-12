@@ -1,0 +1,18 @@
+{% load static %}
+{% for company in companies %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row col-12">
+                <div class="col-5">
+                    <img src="{{ company.logo_url }}" alt="" style = "width: 100px"/>
+                </div>
+
+                <div class="row col-7">
+                    <a href = "{% url 'company_info' company.ticker %}"> {{company.name}} </a>
+                    <p>{{ company.last_price }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer bg-transparent border-success"></div>
+    </div>
+{% endfor %}

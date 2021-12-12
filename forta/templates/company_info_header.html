@@ -1,0 +1,39 @@
+{% load static %}
+
+<div class = "header">
+    {% for info in companies_info %}
+        <div class = "container">
+            <div class="row">
+                <div class = "company-logo">
+                    <img src="{{ info.logo_url }}" style="width: 100px"/>
+                </div>
+                <div class="company_price">
+                    <p>{{info.last_price}}</p>
+                </div>
+                <div class="company_country">
+                    <p>{{info.country}}</p>
+                </div>
+                <div class="company_description">
+                    <p>{{info.description}}</p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="company_name">
+                    <p>{{info.name}}</p>
+                </div>
+                <div class="company_ticker">
+                    <p>{{info.ticker}}</p>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+    {% for sector in companies_sector %}
+         <div class = "container">
+            <div class="row">
+                <div class="company_sector">
+                    <p>{{sector.sector}}</p>
+                </div>
+            </div>
+         </div>
+    {% endfor %}
+</div>
