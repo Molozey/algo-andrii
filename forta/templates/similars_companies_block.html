@@ -1,0 +1,13 @@
+{% for company in similar_companies %}
+    <div class="row d-flex justify-content-center pb-3">
+        <div class="card" style="width: 26rem;">
+          <div class="card-body">
+            <h5 class="card-title">{{ company.ticker }}</h5>
+            <h6 class="card-subtitle mb-2 text-muted">{{ company.name }}</h6>
+            <p class="card-text">{{ company.last_price }}</p>
+            <a href="{% url 'company_info' company.ticker %}" class="card-link d-flex justify-content-center">More Information</a>
+          </div>
+        </div>
+    </div>
+{% endfor %}
+
