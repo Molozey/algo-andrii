@@ -1,0 +1,44 @@
+.header{
+    padding-top:5%;
+}
+.last_price{
+    padding-top:5%;
+    margin-top: auto;
+    margin-bottom: auto;
+    font-size: 400%;
+}
+
+.logo{
+    width: 50%;
+    height: 50%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.name{
+    margin-top: auto;
+    margin-bottom: auto;
+    font-size: 200%;
+}
+
+.ticker{
+    margin-top: auto;
+    margin-bottom: auto;
+    font-size: 350%;
+}
+
+.country{
+    margin-top: auto;
+    margin-bottom: auto;
+    font-size: 200%;
+}
+
+.sector{
+    margin-top: auto;
+    margin-bottom: auto;
+    font-size: 200%;
+}
+.category{
+    top: 0;
+    right: 0;
+}

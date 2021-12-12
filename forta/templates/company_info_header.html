@@ -1,39 +1,51 @@
 {% load static %}
 
+<link rel="stylesheet" type="text/css" href="{% static 'forta/company_info_styles/company_info_header.css' %}">
+
 <div class = "header">
-    {% for info in companies_info %}
-        <div class = "container">
-            <div class="row">
-                <div class = "company-logo">
-                    <img src="{{ info.logo_url }}" style="width: 100px"/>
-                </div>
-                <div class="company_price">
-                    <p>{{info.last_price}}</p>
-                </div>
-                <div class="company_country">
-                    <p>{{info.country}}</p>
-                </div>
-                <div class="company_description">
-                    <p>{{info.description}}</p>
-                </div>
-            </div>
-            <div class="row">
-                <div class="company_name">
-                    <p>{{info.name}}</p>
-                </div>
-                <div class="company_ticker">
-                    <p>{{info.ticker}}</p>
-                </div>
-            </div>
+    <div class="row">
+        <div class="col-1">
         </div>
-    {% endfor %}
-    {% for sector in companies_sector %}
-         <div class = "container">
-            <div class="row">
-                <div class="company_sector">
-                    <p>{{sector.sector}}</p>
+        <div class="col-8">
+            {% for info in companies_info %}
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="row col-12">
+
+                            <div class="col-5">
+                                {% include "FIFA.html" %}
+                            </div>
+
+                            <div class="row col-7">
+                                <div class="col-6 d-flex justify-content-center">
+                                    <p class="category"> PRICE </p>
+                                    <p class="last_price">{{info.last_price}}</p>
+                                </div>
+                                <div class="col-6">
+                                    <img class="logo" src="{{ info.logo_url }}"/>
+                                </div>
+                                <div class="col-9 d-flex justify-content-center" style="border-top: thin solid; border-bottom: thin solid">
+                                    <p class="name">{{info.name}}</p>
+                                </div>
+                                <div class="col-3 d-flex justify-content-center" style="border-top: thin solid; border-bottom: thin solid">
+                                    <p class="ticker">{{info.ticker}}</p>
+                                </div>
+                                <div class="col-6 d-flex justify-content-center">
+                                    <p class="category"> COUNTRY </p>
+                                    <p class="country">{{info.country}}</p>
+                                </div>
+                                <div class="col-6 d-flex justify-content-center">
+                                    {% for sector in companies_sector %}
+                                        <p class="category"> SECTOR </p>
+                                        <p class="sector">{{sector.sector}}</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-success"></div>
                 </div>
-            </div>
-         </div>
-    {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
 </div>
