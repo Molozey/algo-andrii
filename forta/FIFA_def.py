@@ -35,6 +35,8 @@ def FIFA(ticker_name:str, columns:list):
         else:
             NewValues = NewMin
         return NewValues
+
+
     ret_dict = dict()
     ret_dict.update({'ticker': ticker_name})
     for COL in columns:
