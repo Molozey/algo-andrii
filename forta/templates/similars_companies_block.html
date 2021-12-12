@@ -1,18 +1,13 @@
 <div>
     <div class="row pb-3">
-        <div class="col-1">
 
-        </div>
-        <div class="col-8 d-flex justify-content-center">
+        <div class="col-10 d-flex justify-content-center">
             <h2 style="color: #e3e3e3">Similar companies</h2>
         </div>
     </div>
     {% for company in similar_companies %}
         <div class="row pb-3">
-            <div class="col-1">
-
-            </div>
-            <div class="col-8 d-flex justify-content-center">
+            <div class="col-10 d-flex justify-content-center">
             <div class="card" style="width: 26rem;">
               <div class="card-body">
                 <h5 class="card-title">{{ company.ticker }}</h5>

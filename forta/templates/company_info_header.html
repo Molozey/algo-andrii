@@ -7,20 +7,19 @@
 </div>
 <div class = "header">
     <div class="row">
-        <div class="col-1">
-        </div>
-        <div class="col-8">
+
+        <div class="col-10">
             {% for info in companies_info %}
                 <div class="card mb-4">
                     <div class="card-body">
                         <div class="row col-12">
 
-                            <div class="col-5">
+                            <div class="col-7">
                                 {% include "FIFA.html" %}
                             </div>
 
-                            <div class="row col-7">
-                                <div class="col-6 d-flex justify-content-end"">
+                            <div class="row col-5">
+                                <div class="col-6 d-flex justify-content-end">
                                     <p class="category"> PRICE </p>
                                     <p class="last_price">{{info.last_price}}</p>
                                 </div>
