@@ -1,4 +1,5 @@
 {% load static %}
+
 {% for company in companies %}
     <div class="card mb-4">
         <div class="card-body">
@@ -16,7 +17,7 @@
         <div class="card-footer bg-transparent border-success"></div>
 
         <a href="{% url "update_wishlist" company.ticker %}" class="btn btn-outline-success" type="button" id="wishlistbtn"  aria-expanded="false">
-        <i class="fa fa-star-o"></i>
+            <i class="fa fa-star-o"></i>
         </a>
     </div>
 {% endfor %}

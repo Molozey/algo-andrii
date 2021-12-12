@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    {% include 'head_links.html' %}
     <meta charset="UTF-8">
     <title>Title</title>
 </head>
@@ -16,6 +17,9 @@
             <div>
                 {{ company.last_price }}
             </div>
+           <a href="{% url "update_wishlist" company.ticker %}" class="btn btn-outline-danger" type="button" id="wishlistbtn"  aria-expanded="false">
+                <i class="fa-trash-o"></i>
+           </a>
         {% endfor %}
     {% endfor %}
 </body>

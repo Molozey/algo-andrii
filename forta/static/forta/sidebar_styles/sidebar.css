@@ -23,6 +23,11 @@
     color: #818181;
 }
 
-.sidebar span:hover {
+.sidebar h4:hover {
     color: #f1f1f1;
 }
+
+.links {
+    color: white;
+}
+
