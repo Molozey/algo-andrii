@@ -29,6 +29,16 @@ def company_info(request, pk):
      companies_info = TickerInformation.objects.filter(ticker=pk)
      companies_sector = TickerSector.objects.filter(ticker=pk)
 
+     company_prices = TickerPrices.objects.filter(ticker=pk).all()[0]
+     print('+++++++')
+
+     PRICES_DATES = list()
+     PRICES_LIST = list()
+     for _ in company_prices.day_prices.items():
+         print(_)
+         PRICES_DATES.append(_[0])
+         PRICES_LIST.append(float(_[1]))
+
      for company in companies_info:
          if company.logo_url == None:
              company.logo_url = 'https://www.dobro38.ru/upload/iblock/629/keg-20l.jpg'
@@ -50,6 +60,9 @@ def company_info(request, pk):
      context = {'companies_info': companies_info, 'companies_sector': companies_sector,
                 'fifa_data_value': fifa_data_value,
                 'fifa_data_key': fifa_data_key,
-                'similar_companies': cmp_similar,}
+                'similar_companies': cmp_similar,
+                'company_price': PRICES_LIST,
+                'prices_dates': PRICES_DATES,}
+
      return render(request, 'base_comp_info.html', context)
 

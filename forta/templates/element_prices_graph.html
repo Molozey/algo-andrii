@@ -1,0 +1,82 @@
+{% load static %}
+
+
+<script src="{% static 'forta/FIFA_styles/js/apexcharts.js' %}"></script>
+<style>
+    td{
+        text-align:center;
+        vertical-align:middle;
+    }
+</style>
+<div class="row-col-6" id="chart">
+<script type="text/javascript">
+var options = {
+          series: [{
+          name: 'XYZ MOTORS',
+          data: {{ company_price }}
+        }],
+          chart: {
+          type: 'area',
+          stacked: false,
+          height: 350,
+          width: 800,
+          zoom: {
+            type: 'x',
+            enabled: true,
+            autoScaleYaxis: true
+          },
+          toolbar: {
+            autoSelected: 'zoom'
+          }
+        },
+        dataLabels: {
+          enabled: false
+        },
+        markers: {
+          size: 0,
+        },
+        title: {
+          text: 'Stock Price Movement',
+          align: 'left'
+        },
+        fill: {
+          type: 'gradient',
+          gradient: {
+            shadeIntensity: 1,
+            inverseColors: false,
+            opacityFrom: 0.5,
+            opacityTo: 0,
+            stops: [0, 90, 100]
+          },
+        },
+        yaxis: {
+          labels: {
+            formatter: function (val) {
+              return (val / 1).toFixed(2);
+            },
+          },
+          title: {
+            text: 'Price'
+          },
+        },
+        xaxis: {
+          type: 'datetime',
+          categories: {{ prices_dates|safe }}
+        },
+        tooltip: {
+          shared: false,
+          y: {
+            formatter: function (val) {
+              return (val / 1).toFixed(2)
+            }
+          }
+        }
+        };
+
+        var chart = new ApexCharts(document.querySelector("#chart"), options);
+        chart.render();
+
+
+
+</script>
+</div>

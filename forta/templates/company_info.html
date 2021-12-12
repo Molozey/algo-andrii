@@ -1,14 +1,18 @@
 {% load static %}
 
+
 {% block content %}
+
     {% block comp_header %}
         {% include 'company_info_header.html' %}
     {% endblock %}
+
     {% block brief_info %}
     {% endblock %}
     {% block company_description %}
     {% endblock %}
     {% block price_dynamics %}
+        {% include 'element_prices_graph.html' %}
     {% endblock %}
     {% block month_price %}
     {% endblock %}
@@ -19,6 +23,6 @@
     {% block value_indicators %}
     {% endblock %}
     {% include "similars_companies_block.html" %}
-    {{ fifa_data_key }}
-    {{ fifa_data_value }}
 {% endblock %}
+
+
