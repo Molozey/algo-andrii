@@ -9,13 +9,14 @@
     }
 </style>
 <div class="row-col-6" id="chartFIFA">
-
     <script type="text/javascript">
-
+        {{ fifa_data_key|safe }}.forEach(item =>{
+            console.log(item)
+        });
         var options = {
             series: [{
                 name: 'Series 1',
-                data: {{ fifa_data }},
+                data: {{ fifa_data_value}},
             }],
             chart: {
                 height: 350,
@@ -53,7 +54,12 @@
                 }
             },
             xaxis: {
-                categories: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+                categories: {{ fifa_data_key|safe }},
+                labels: {
+                    show: true,
+                    rotate: 45,
+                }
             },
             yaxis: {
                 tickAmount: 5,

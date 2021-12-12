@@ -118,3 +118,5 @@ def get_similar(ticker, Host, User, Password, DataBaseName):
 
 # #[0.0015661645172121447 6.81310402006617e-06 0.04607668975686084 0.37574404761904767 -1 5 2]
 # get_similar('AACG', Host=Host, Password=Password, User=User, DataBaseName=DataBaseName)
+
+print(type(list(FIFA(ticker_name='AACG', columns=['market_cap', 'earnings', 'revenue_growth', 'price_to_earnings']).keys())[1]))
