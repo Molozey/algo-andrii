@@ -1,28 +1,42 @@
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     {% include 'head_links.html' %}
-    <meta charset="UTF-8">
-    <title>Title</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'forta/main.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'forta/navbar_styles/navbar_styles.css' %}">
+    <title>Wishlist</title>
 </head>
 <body>
-        {% if empty %}
-            <h1> {{ empty_message }} </h1>
-        {% else %}
-            {% for company in wishlist.tickers.all %}
-                <div>
-                    {{ company.logo_url }}
-                </div>
-                <div>
-                    {{ company.name }}
-                </div>
-                <div>
-                    {{ company.last_price }}
-                </div>
-               <a href="{% url "update_wishlist" company.ticker %}" class="btn btn-outline-danger" type="button" id="wishlistbtn"  aria-expanded="false">
-                    <i class="fa-trash-o"></i>
-               </a>
-            {% endfor %}
-        {% endif %}
+<div class="main_part">
+    <div class="row">
+        {% block navigation_bar %}
+            {% include 'nav_bar.html'%}
+        {% endblock %}
+    </div>
+    <div class="row">
+            <div class="col-md-2" id="0to2">
+                {% block side_bar %}
+                    {% include 'side_bar.html'%}
+                {% endblock %}
+            </div>
+
+        <div class="col-md-10 company-card" id="2to12" >
+            <div class="no-wish d-flex justify-content-center" style="color: white; margin-bottom: 40%">
+                {% if empty %}
+                    <h1> {{ empty_message }} </h1>
+                {% else %}
+                    {{ block_content }}
+                    {% include "wishlist.html" %}
+                    {{ endblock }}
+                {% endif %}
+            </div>
+
+            {% block bottom %}
+                    {% include 'bottom.html' %}
+            {% endblock %}
+        </div>
+    </div>
 </body>
 </html>

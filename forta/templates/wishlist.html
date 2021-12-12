@@ -1,0 +1,23 @@
+{% load static %}
+
+{% for company in wishlist.tickers.all %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row col-12">
+                <div class="col-5">
+                    <img src="{{ company.logo_url }}" alt="" style = "width: 100px"/>
+                </div>
+
+                <div class="row col-7">
+                    <a href = "{% url 'company_info' company.ticker %}"> {{company.name}} </a>
+                    <p>{{ company.last_price }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer bg-transparent border-success"></div>
+
+       <a href="{% url "update_wishlist" company.ticker %}" class="btn btn-outline-danger" type="button" id="wishlistbtn"  aria-expanded="false">
+            <i class="fa-trash-o"></i>
+       </a>
+    </div>
+{% endfor %}
