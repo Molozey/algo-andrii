@@ -6,21 +6,23 @@
     <title>Title</title>
 </head>
 <body>
-    {% for wishlist in wishlists%}
-        {% for company in wishlist.tickers.all %}
-            <div>
-                {{ company.logo_url }}
-            </div>
-            <div>
-                {{ company.name }}
-            </div>
-            <div>
-                {{ company.last_price }}
-            </div>
-           <a href="{% url "update_wishlist" company.ticker %}" class="btn btn-outline-danger" type="button" id="wishlistbtn"  aria-expanded="false">
-                <i class="fa-trash-o"></i>
-           </a>
-        {% endfor %}
-    {% endfor %}
+        {% if empty %}
+            <h1> {{ empty_message }} </h1>
+        {% else %}
+            {% for company in wishlist.tickers.all %}
+                <div>
+                    {{ company.logo_url }}
+                </div>
+                <div>
+                    {{ company.name }}
+                </div>
+                <div>
+                    {{ company.last_price }}
+                </div>
+               <a href="{% url "update_wishlist" company.ticker %}" class="btn btn-outline-danger" type="button" id="wishlistbtn"  aria-expanded="false">
+                    <i class="fa-trash-o"></i>
+               </a>
+            {% endfor %}
+        {% endif %}
 </body>
 </html>
