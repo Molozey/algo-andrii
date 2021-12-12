@@ -47,9 +47,11 @@
                     <div class="card-footer bg-transparent border-success">
                     <div class="row">
                     <div class="col-1">
-                    <button class="btn btn-outline-success" type="button" id="wishlistbtn"  aria-expanded="false">
-                    <i class="fa fa-star-o"></i>
-                  </button>
+                        {% for info in companies_info %}
+                            <a href="{% url "update_wishlist" info.ticker %}" class="btn btn-outline-success" type="button" id="wishlistbtn"  aria-expanded="false">
+                                <i class="fa fa-star-o"></i>
+                            </a>
+                        {% endfor %}
                     </div>
                     <div class="col-11">
                         <div class="dropdown">

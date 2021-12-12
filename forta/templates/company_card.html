@@ -14,8 +14,10 @@
             </div>
         </div>
         <div class="card-footer bg-transparent border-success"></div>
-        <button class="btn btn-outline-success" type="button" id="wishlistbtn"  aria-expanded="false">
+
+        <a href="{% url "update_wishlist" company.ticker %}" class="btn btn-outline-success" type="button" id="wishlistbtn"  aria-expanded="false">
         <i class="fa fa-star-o"></i>
-      </button>
+        </a>
     </div>
 {% endfor %}
+

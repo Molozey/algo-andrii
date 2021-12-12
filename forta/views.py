@@ -66,3 +66,5 @@ def company_info(request, pk):
 
      return render(request, 'base_comp_info.html', context)
 
+
+

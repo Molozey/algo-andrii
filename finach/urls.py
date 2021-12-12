@@ -15,11 +15,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+import forta.views
+import wishlists.views
 from forta import views
+from wishlists import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', views.main, name="main"),
-    path('companies/<str:pk>', views.company_info, name="company_info"),
+    path('', forta.views.main, name="main"),
+    path('companies/<str:pk>', forta.views.company_info, name="company_info"),
+    path('wishlist/', wishlists.views.view, name="wishlist"),
+    path('wishlist/<str:pk>',  wishlists.views.update_wishlist, name='update_wishlist'),
 ]
 
