@@ -1,5 +1,9 @@
 {% for company in similar_companies %}
-    <div class="row d-flex justify-content-center pb-3">
+    <div class="row pb-3">
+        <div class="col-1">
+
+        </div>
+        <div class="col-8 d-flex justify-content-center">
         <div class="card" style="width: 26rem;">
           <div class="card-body">
             <h5 class="card-title">{{ company.ticker }}</h5>
@@ -7,6 +11,7 @@
             <p class="card-text">{{ company.last_price }}</p>
             <a href="{% url 'company_info' company.ticker %}" class="card-link d-flex justify-content-center">More Information</a>
           </div>
+        </div>
         </div>
     </div>
 {% endfor %}
