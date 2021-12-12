@@ -20,12 +20,12 @@
                             </div>
 
                             <div class="row col-7">
-                                <div class="col-6 d-flex justify-content-center">
+                                <div class="col-6 d-flex justify-content-end"">
                                     <p class="category"> PRICE </p>
                                     <p class="last_price">{{info.last_price}}</p>
                                 </div>
-                                <div class="col-6">
-                                    <img class="logo" src="{{ info.logo_url }}"/>
+                                <div class="col-6 d-flex justify-content-center">
+                                    <img src="{{ info.logo_url }}" style="transform: scale(0.7, 0.7)"/>
                                 </div>
                                 <div class="col-9 d-flex justify-content-center" style="border-top: thin solid; border-bottom: thin solid">
                                     <p class="name">{{info.name}}</p>
