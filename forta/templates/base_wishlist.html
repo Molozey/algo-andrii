@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+    {% for wishlist in wishlists%}
+        {% for company in wishlist.tickers.all %}
+            <div>
+                {{ company.logo_url }}
+            </div>
+            <div>
+                {{ company.name }}
+            </div>
+            <div>
+                {{ company.last_price }}
+            </div>
+        {% endfor %}
+    {% endfor %}
+</body>
+</html>
