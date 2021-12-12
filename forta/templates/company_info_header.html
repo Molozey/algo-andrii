@@ -1,7 +1,6 @@
 {% load static %}
 
 <link rel="stylesheet" type="text/css" href="{% static 'forta/company_info_styles/company_info_header.css' %}">
-
 <div class="row">
 
 </div>
@@ -45,7 +44,32 @@
                             </div>
                         </div>
                     </div>
-                    <div class="card-footer bg-transparent border-success"></div>
+                    <div class="card-footer bg-transparent border-success">
+                    <div class="row">
+                    <div class="col-1">
+                    <button class="btn btn-outline-success" type="button" id="wishlistbtn"  aria-expanded="false">
+                    <i class="fa fa-star-o"></i>
+                  </button>
+                    </div>
+                    <div class="col-11">
+                        <div class="dropdown">
+                      <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i><h7>Description</h7></i>
+                      </button>
+                      <ul class="dropdown-menu " aria-labelledby="dropdownMenuButton1">
+                          {% for info in companies_info %}
+                             <div class="row col-1">
+
+                             </div>
+                            <div class="row col-10 info text-center">
+                            <h7>{{ info.description }}}</h7>
+                            </div>
+                          {% endfor %}
+                      </ul>
+                    </div>
+                    </div>
+                    </div>
+                </div>
                 </div>
             {% endfor %}
         </div>
