@@ -32,12 +32,21 @@
                     {{ endblock }}
                 {% endif %}
             </div>
-
+            <div>
+                {% if marco_un %}
+                    <h1> Unavailable </h1>
+                {% else %}
+                    {% for marc in marko %}
+                        <h2> {{ marc.ticker}} : {{ marc.weight}}</h2>
+                    {% endfor %}
+                {% endif %}
+            </div>
             {% block bottom %}
                     {% include 'bottom.html' %}
             {% endblock %}
         </div>
     </div>
+
 </div>
 
 </body>

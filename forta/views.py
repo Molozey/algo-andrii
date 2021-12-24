@@ -30,12 +30,10 @@ def company_info(request, pk):
      companies_sector = TickerSector.objects.filter(ticker=pk)
 
      company_prices = TickerPrices.objects.filter(ticker=pk).all()[0]
-     print('+++++++')
 
      PRICES_DATES = list()
      PRICES_LIST = list()
      for _ in company_prices.day_prices.items():
-         print(_)
          PRICES_DATES.append(_[0])
          PRICES_LIST.append(float(_[1]))
 

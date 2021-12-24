@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, reverse, HttpResponseRedirect
 from .models import Wishlist
 from forta.models import TickerInformation
-
+from wishlists.functions.marko import MARKO
 # Create your views here.
 
 def view(request):
@@ -11,7 +11,18 @@ def view(request):
         the_id = None
     if the_id:
         wishlist = Wishlist.objects.get(id=the_id)
-        context = {"wishlist": wishlist}
+        CMPY_LIST = list()
+        for company in wishlist.tickers.all():
+            CMPY_LIST.append(company.ticker)
+
+            STATUS, MAR = MARKO(CMPY_LIST)
+            if STATUS == '+':
+                context = {"wishlist": wishlist,
+                           'marko': MAR}
+
+            if STATUS == '-':
+                context = {"wishlist": wishlist,
+                           "marco_un": True}
     else:
         empty_message = "Looks so empty..."
         context = {"empty": True, "empty_message": empty_message}
@@ -28,6 +39,7 @@ def update_wishlist(request, pk):
         request.session['wishlist_id'] = new_wishlist.id
         the_id = new_wishlist.id
 
+    company = None
     wishlist = Wishlist.objects.get(id=the_id)
 
     try:
