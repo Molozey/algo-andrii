@@ -6,6 +6,14 @@ class CompatibleException(Exception):
     def __str__(self):
         return f"{self.message}"
 
+
+class SmallBlocksUsage(Exception):
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
+    def __str__(self):
+        return f"{self.message}"
+
 """================================================================================================================================================="""
 class StrategyErrors:
     def __init__(self):
@@ -33,6 +41,7 @@ class RulesConstructorErrors:
 
     def UnCompatibleComplexRule(self, RuleConstructor, ComplexRule):
         self.message = f"Rule ({RuleConstructor.StrategyRuleConstructorType()}) not compatible with StrategyHub ({ComplexRule.RuleIndex()})"
+        raise CompatibleException(self.message)
 """================================================================================================================================================="""
 class SmallWorkers:
     def __init__(self):
@@ -40,6 +49,7 @@ class SmallWorkers:
 
     def UnCompatibleRuleBlock(self, ComplexRule, Worker):
         self.message = f"Worker ({Worker.WorkerIndex()}) cannot be used with ComplexRule ({ComplexRule.RuleIndex()})"
+        raise SmallBlocksUsage(self.message)
 """================================================================================================================================================="""
 class SplitDataErrors:
     def __init__(self):
