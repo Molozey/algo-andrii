@@ -24,7 +24,8 @@ def createTimeDifference(index):
     :return:
     """
     if type(index) != pd.core.indexes.datetimes.DatetimeIndex:
-        raise FilterErrors().WrongTimeType()
-    ZERO_TIME = index[0].day
+        raise StrategyErrors().WrongIndicesType()
 
-    return [pd.Timedelta(days=_.day - ZERO_TIME, hours=_.hour, minutes=_.minute) for _ in index]
+    ZERO_TIME = index[0].to_numpy()
+    ZERO_TIME = ZERO_TIME.astype('datetime64[s]').item().date()
+    return index - pd.to_datetime(ZERO_TIME)
