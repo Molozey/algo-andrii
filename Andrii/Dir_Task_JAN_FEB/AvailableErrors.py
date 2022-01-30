@@ -19,11 +19,28 @@ class StrategyErrors:
         self.message = f"Change DataFrame index to pandas datetime format"
         raise TypeError(self.message)
 
-    def UnCompatibleExtractor(self, Strategy, StrategyExtractor):
-        self.message = f"Extractor ({StrategyExtractor.ExtractorIndex()}) not compatible with Strategy ({Strategy.StrategyIndex()})"
+    def UnCompatibleExtractor(self, HubStrategy, StrategyExtractor):
+        self.message = f"Extractor ({StrategyExtractor.ExtractorIndex()}) not compatible with StrategyHub ({HubStrategy.StrategyIndex()})"
         raise CompatibleException(self.message)
 
+    def UnCompatibleRulesConstructor(self, HubStrategy, RulesConstructor):
+        self.message = f"RulesConstructor ({RulesConstructor.StrategyRuleConstructorType()}) not compatible with StrategyHub ({HubStrategy.StrategyIndex()})"
+        raise CompatibleException(self.message)
+"""================================================================================================================================================="""
+class RulesConstructorErrors:
+    def __init__(self):
+        self.message = None
 
+    def UnCompatibleComplexRule(self, RuleConstructor, ComplexRule):
+        self.message = f"Rule ({RuleConstructor.StrategyRuleConstructorType()}) not compatible with StrategyHub ({ComplexRule.RuleIndex()})"
+"""================================================================================================================================================="""
+class SmallWorkers:
+    def __init__(self):
+        self.message = None
+
+    def UnCompatibleRuleBlock(self, ComplexRule, Worker):
+        self.message = f"Worker ({Worker.WorkerIndex()}) cannot be used with ComplexRule ({ComplexRule.RuleIndex()})"
+"""================================================================================================================================================="""
 class SplitDataErrors:
     def __init__(self):
         self.message = None
