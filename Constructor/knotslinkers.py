@@ -3,32 +3,27 @@ from abc import ABC, abstractmethod
 from Constructor.objectTypes import BaseObjectType
 
 
-class BaseOutputKnot(ABC):
+class BaseOutputKnot:
     """
     Базовая реализация узла передачи данных
     """
-    def __init__(self, KnotObject: BaseObjectType):
+    def __init__(self, KnotObject):
         """
-
         :param KnotObject: объект объясняющий логику принятия и передачи данных из узла
         """
         self.KnotObject = KnotObject
-        self._children.clear()
+        self._children = list()
 
-    _children: List = []
-
-    def add_child_link(self, *childKnot) -> None:
+    def add_child_link(self, childKnot) -> None:
         """
         Создание связи между родительским и дочерним узлом. После установления в случае изменения состояния в родителе
         дочка получит обновленное состояние
         :param childKnot: объект типа BaseInputKnot
         :return: None
         """
-        for child in childKnot:
-            if child.KnotObject.ObjectType() != self.KnotObject.ObjectType():
-                raise KeyError('Linking Error')
-
-            self._children.append(child)
+        if childKnot.KnotObject.ObjectType() != self.KnotObject.ObjectType():
+            raise KeyError('Linking Error')
+        self._children.append(childKnot)
         return None
 
     def remove_child_link(self, *childKnot):
@@ -47,7 +42,7 @@ class BaseOutputKnot(ABC):
         :return:
         """
         for observer in self._children:
-            observer.update(self)
+            observer.Tupdate(self)
 
     def changed_condition(self, obj):
         """
@@ -59,22 +54,25 @@ class BaseOutputKnot(ABC):
         self._refreshChildrenKnots()
 
 
-class BaseInputKnot(ABC):
+class BaseInputKnot:
     """
     Базовая реализация узла принятия данных
     """
-    def __init__(self, KnotObject: BaseObjectType):
+    def __init__(self, KnotObject):
         """
 
         :param KnotObject: объект объясняющий логику принятия и передачи данных в узла
         """
         self.KnotObject = KnotObject
 
-    def update(self, parent: BaseOutputKnot):
+    def Tupdate(self, parent):
         """
         Функция обновления состояния данных в дочернем узле
         :param parent: объект передающийся из родителя через интерфейс оповещения
         :return:
         """
         self.KnotObject.transfer(parent.KnotObject.receive())
+
+    def getContent(self):
+        return self.KnotObject.receive()
 

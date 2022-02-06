@@ -15,7 +15,6 @@ class BaseNode(ABC):
         self.priority = priority
         self.AllInputs = list()
         self.AllOutputs = list()
-        self._mutable = False
 
     def create_parent_link(self, self_inp_position, parentNode, parent_out_position) -> None:
         """
@@ -27,8 +26,18 @@ class BaseNode(ABC):
         """
         parentNode.AllOutputs[parent_out_position]['knot'].add_child_link(self.AllInputs[self_inp_position]['knot'])
 
+    # def create_parent_link(self, self_out_position, childNode, child_in_position) -> None:
+    #     """
+    #     Вызывает создание связи потомок-родитель
+    #     :param self_inp_position: Позиция дочернего узла в дочерней ноде
+    #     :param parentNode: Родительская нода с которой связывается узел
+    #     :param parent_out_position: Позиция родительского узла в родительской ноде
+    #     :return: None
+    #     """
+    #     self.AllOutputs[self_out_position]['knot'].add_child_link(childNode.AllInputs[child_in_position]['knot'])
+
     @abstractmethod
-    def change_condition(self, **param):
+    def node_cycle(self, **param):
         """
         Описания процесса преобразования данных из входящих узлов в выходящие узлы
         :param param:
@@ -94,7 +103,7 @@ class ConstNode(BaseNode):
         self._inside = None
         self._mutable = None
 
-    def change_condition(self, value):
+    def node_cycle(self, value):
         buffer = self._inside
         self._inside = value
 
@@ -109,3 +118,11 @@ class ConstNode(BaseNode):
 
     def NodeIndex(self):
         return 'G_002'
+
+
+# getValue = GetABSValue()
+# CONST = ConstNode()
+# getValue.create_parent_link(self_inp_position=0,parentNode=CONST, parent_out_position=0)
+#
+#
+# getValue.show_condition()

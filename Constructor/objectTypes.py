@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import pandas
 
 
 class BaseObjectType(ABC):
@@ -43,13 +44,15 @@ class Value(BaseObjectType):
         return self.__class__.__name__
 
     def transfer(self, value):
+        if type(value) != (float or int):
+            raise ValueError(f"Get {type(value)} instead of INT | FLOAT")
         self._object = value
 
     def receive(self):
         return self._object
 
 
-class DataFrame(BaseObjectType):
+class Frame(BaseObjectType):
     """
     Тип информации передающий объекты pandas.DataFrame
     """
@@ -57,6 +60,8 @@ class DataFrame(BaseObjectType):
         return self.__class__.__name__
 
     def transfer(self, value):
+        if type(value) != pandas.DataFrame:
+            raise ValueError(f"Get {type(value)} instead of pd.DaraFrame")
         self._object = value
 
     def receive(self):
