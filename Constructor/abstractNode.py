@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from knotslinkers import *
+from objectTypes import *
 
 
 class BaseNode(ABC):
@@ -13,6 +15,7 @@ class BaseNode(ABC):
         self.priority = priority
         self.AllInputs = list()
         self.AllOutputs = list()
+        self._mutable = False
 
     def create_parent_link(self, self_inp_position, parentNode, parent_out_position) -> None:
         """
@@ -23,6 +26,23 @@ class BaseNode(ABC):
         :return: None
         """
         parentNode.AllOutputs[parent_out_position]['knot'].add_child_link(self.AllInputs[self_inp_position]['knot'])
+
+    @abstractmethod
+    def change_condition(self, **param):
+        """
+        Описания процесса преобразования данных из входящих узлов в выходящие узлы
+        :param param:
+        :return:
+        """
+        pass
+
+    @abstractmethod
+    def execute_node(self):
+        """
+        Функция запускающая принудительное выполнение ноды
+        :return:
+        """
+        pass
 
     @property
     @abstractmethod
@@ -45,9 +65,11 @@ class BaseNode(ABC):
 
 class GetABSValue(BaseNode):
     priority = 3
+
     def __init__(self):
         super().__init__(priority=self.priority)
-        self.AllInputs = [{'position': 1, 'knot': BaseInputKnot(Value())}, {'position': 2, 'knot': BaseInputKnot(Value())}]
+        self.AllInputs = [{'position': 1, 'knot': BaseInputKnot(Value())},
+                          {'position': 2, 'knot': BaseInputKnot(Value())}]
         self.AllOutputs = []
 
     def convert(self):
@@ -63,6 +85,7 @@ class GetABSValue(BaseNode):
 
 class ConstNode(BaseNode):
     priority = 3
+
     def __init__(self):
         super().__init__(priority=self.priority)
         self.AllInputs = list()
