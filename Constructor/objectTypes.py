@@ -2,26 +2,43 @@ from abc import ABC, abstractmethod
 
 
 class BaseObjectType(ABC):
-
+    """
+    Базовый класс отображающий тип передаваемой информации. От него базируются все типы данных
+    """
     def __init__(self):
         self._object = None
 
     @property
     @abstractmethod
-    def ObjectType(self):
+    def ObjectType(self) -> None:
+        """
+        Необходим для создания логики совместимых узлов нод
+        :return: None
+        """
         pass
 
     @abstractmethod
     def transfer(self, obj):
+        """
+        Определяет правила записи объекта в память
+        :param obj: любой объект
+        :return: None
+        """
         pass
 
     @abstractmethod
     def receive(self):
+        """
+        Определяет правило передачи информации сохраненной в объекте
+        :return:
+        """
         pass
 
 
 class Value(BaseObjectType):
-
+    """
+    Тип информации передающий числовые значения
+    """
     def ObjectType(self):
         return self.__class__.__name__
 
@@ -33,7 +50,9 @@ class Value(BaseObjectType):
 
 
 class DataFrame(BaseObjectType):
-
+    """
+    Тип информации передающий объекты pandas.DataFrame
+    """
     def ObjectType(self):
         return self.__class__.__name__
 
