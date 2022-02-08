@@ -24,13 +24,18 @@ class BaseNode(ABC):
                                self.AllOutputs]
 
     def mutable_logic(self):
-        if self.new_outputs is not  self._actualOutputs:
+        """
+        Вызывает проверку изменения состояния выходов в ноде. В случае если изменения есть - каскадно вызываются все дочерние ноды.
+        :return:
+        """
+        if self.new_outputs is not self._actualOutputs:
             for outKnot in self.AllOutputs:
                 for newKnot in self.new_outputs:
                     if newKnot['position'] == outKnot['position']:
                         outKnot['knot'].changed_condition(newKnot['content'])
 
             self.execute_node()
+
     # def create_parent_link(self, self_inp_position, parentNode, parent_out_position) -> None:
     #     """
     #     Вызывает создание связи потомок-родитель
@@ -103,57 +108,90 @@ class BaseNode(ABC):
 
 # Примеры НОД
 
-class GetABSValue(BaseNode):
-    priority = 3
+class ImportDataNode(BaseNode):
+    priority = 0
 
     def __init__(self):
         super().__init__(priority=self.priority)
-        self.AllInputs = [{'position': 1, 'knot': BaseInputKnot(Value())},
-                          {'position': 2, 'knot': BaseInputKnot(Value())}]
-        self.AllOutputs = []
+        self.AllInputs = []
+        self.AllOutputs = [{'position': 1, 'knot': BaseOutputKnot(DataFrame())}]
 
-    def convert(self):
-        return abs(self.AllInputs[0]['knot'].KnotObject.receive())
+        self._actualOutputs = [{'position': outKnot['position'], 'content': outKnot['knot'].getContent()}for outKnot in self.AllOutputs]
 
-    def show_condition(self):
-        for inputs in self.AllInputs:
-            print(f"{inputs['position']}, condition: {inputs['knot'].KnotObject.receive()}")
+    def node_cycle(self, **param):
+        from pandas import read_csv
+
+        get_params = param
+        if not 'filepath' in get_params:
+            raise KeyError('No filepath')
+        else:
+            filepath = param['filepath']
+        if not 'sep' in get_params:
+            sep = ','
+        else:
+            sep = param['sep']
+        if not 'header' in get_params:
+            header = 0
+        else:
+            header = param['header']
+        if not 'index_col' in get_params:
+            index_col = 0
+        else:
+            index_col = param['index_col']
+
+        self.new_outputs = [{'position':1, 'content':read_csv(filepath_or_buffer=filepath, sep=sep, header=header, index_col=index_col)}]
+
+        self.mutable_logic()
 
     def NodeIndex(self):
-        return 'G_001'
+        return 'D_001'
 
 
-class ConstNode(BaseNode):
-    priority = 3
+class CalculateMax(BaseNode):
+    priority = 0
+
+    def NodeIndex(self):
+        return 'C_001'
 
     def __init__(self):
         super().__init__(priority=self.priority)
-        self.AllInputs = list()
+        self.AllInputs = [{'position': 1, 'knot': BaseInputKnot(DataFrame())}]
         self.AllOutputs = [{'position': 1, 'knot': BaseOutputKnot(Value())}]
 
-        self._inside = None
-        self._mutable = None
+        self.buffer_condition = [{'position': 1, 'content': self.AllOutputs[0]['knot'].getContent()}]
+        self._inside = self.buffer_condition
 
-    def node_cycle(self, value):
-        buffer = self._inside
-        self._inside = value
+    def node_cycle(self, **param):
 
-        if buffer != self._inside:
-            self._mutable = True
-        del buffer
+        self.new_outputs = [{'position': 1, 'content': float(self.AllInputs[0]['knot'].getContent().open.max())}]
 
-    def execute_node(self):
-        if self._mutable:
-            self.AllOutputs[0]['knot'].changed_condition(self._inside)
-        self._mutable = False
+        self.mutable_logic()
+
+
+class TestingPrintNode(BaseNode):
+    priority = 0
+
+    def __init__(self):
+        super().__init__(priority=self.priority)
+        self.AllInputs = [{'position': 1, 'knot': BaseInputKnot(Value())}]
+        self.AllOutputs = []
+
+        self.buffer_condition = []
+        self._inside = self.buffer_condition
+
+    def node_cycle(self, **param):
+        print(self.AllInputs[0]['knot'].getContent())
+        pass
 
     def NodeIndex(self):
-        return 'G_002'
+        return 'HelperNode_001'
 
-
-# getValue = GetABSValue()
-# CONST = ConstNode()
-# getValue.create_parent_link(self_inp_position=0,parentNode=CONST, parent_out_position=0)
+# testNode = TestingPrintNode()
+# dataImport = ImportDataNode()
+# calculateMax = CalculateMax()
+# dataImport.create_parent_link(self_out_position=0, childNode=calculateMax, child_in_position=0)
+# calculateMax.create_parent_link(self_out_position=0, childNode=testNode, child_in_position=0)
 #
 #
-# getValue.show_condition()
+# dataImport.node_cycle(filepath='test.csv', sep=',', header=0, index_col=0)
+# dataImport.node_cycle(filepath='test2.csv')
