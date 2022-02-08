@@ -66,3 +66,17 @@ class Frame(BaseObjectType):
 
     def receive(self):
         return self._object
+
+
+class NodesLinker(BaseObjectType):
+    """
+    Тип информации хранящий в себе информацию о связи между нодами
+    """
+    def ObjectType(self) -> None:
+        return self.__class__.__name__
+
+    def transfer(self, parent):
+        self._object = parent
+
+    def receive(self):
+        return self._object

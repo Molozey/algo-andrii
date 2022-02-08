@@ -26,14 +26,14 @@ class BaseOutputKnot:
         self._children.append(childKnot)
         return None
 
-    def remove_child_link(self, *childKnot):
+    def remove_child_link(self, childKnot):
         """
         Удаление связи между родительским и дочерним узлом.
         :param childKnot: объект типа BaseInputKnot
         :return: None
         """
-        for child in childKnot:
-            self._children.remove(child)
+        if childKnot in self._children:
+            self._children.remove(childKnot)
         return None
 
     def _refreshChildrenKnots(self):
@@ -52,6 +52,9 @@ class BaseOutputKnot:
         """
         self.KnotObject.transfer(obj)
         self._refreshChildrenKnots()
+
+    def getContent(self):
+        return self.KnotObject.receive()
 
 
 class BaseInputKnot:
