@@ -69,6 +69,10 @@ class CreateBBand:
         self.calc_data = calc_data
 
     def create_parameter(self):
-        mean = self.calc_data.rolling(window=self.window_moving_average).mean()
-        std = self.calc_data.std()
+        from numpy import mean, std
+        # mean = self.calc_data.rolling(window=self.window_moving_average).mean()
+        # std = self.calc_data.rolling(window=self.window_moving_average).std()
+        buf = self.calc_data.rolling(window=self.window_moving_average)
+        mean = buf.agg(mean)
+        std = buf.agg(std)
         self.param = [mean - std * self.Y_threshold, mean + std * self.Y_threshold]
