@@ -96,7 +96,6 @@ class BaseStrategyExtractor(BaseStrategyHub):
         """
         self.AllOutputs[self_out_position]['knot'].add_child_link(childNode.AllInputs[child_in_position]['knot'])
 
-
     def remove_parent_link(self, self_out_position, childNode, child_in_position) -> None:
         """
         Вызывает удваление связи родитель-потомок

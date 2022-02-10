@@ -38,8 +38,8 @@ class HubTrendFollowingStrategy:
         #   Очень страшное условие, не уверен что всегда будет работать корректно
         #   Нужно вырезать последний список торгов
         # while horizonStopTriggerCurrent != horizonStopTriggerLast: #  Выходит бесконечный цикл
-        while (not self.actual_data.empty) and (horizonStopTriggerCurrent != horizonStopTriggerLast):
-
+        # (self.all_data.shape[0] - tqdm_bar.last_print_n > 100) связанно со скользящим средним
+        while (not self.actual_data.empty) and (horizonStopTriggerCurrent != horizonStopTriggerLast) and (self.all_data.shape[0] - tqdm_bar.last_print_n > 1000):
             self.extractor.transfer_data(self.actual_data)
 
             self.extractor.making_horizon()
@@ -71,7 +71,7 @@ class HubTrendFollowingStrategy:
                 self.actual_data = self.actual_data.loc[potential_period.index[-1]:]
                 tqdm_bar.update(self.actual_data.iloc[0].line_number - tqdm_bar.last_print_n)
         tqdm_bar.update(self.all_data.shape[0] - tqdm_bar.last_print_n)
-        tqdm_bar.close()
+        #tqdm_bar.close()
         self.simulation_results = RESULTS
 
     def add_Rules_constructor(self, rulesConstructor):

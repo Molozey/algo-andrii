@@ -24,8 +24,10 @@ class StrategyExtractor:
 
         pass
 
-    def input_params(self, start_horizon: timedelta, end_horizon: timedelta) -> None:
+    def input_params(self, start_horizon: timedelta, end_horizon: (timedelta or str)) -> None:
+
         self._start = start_horizon
+        #   end_horizon can be ':'
         self._end = end_horizon
 
     def apply_filters(self, single_filter) -> None:
@@ -42,7 +44,10 @@ class StrategyExtractor:
         for dot_on_all_data in self.input_data.index:
             logical_filter = True
             #   SELECT BORDERS
-            buffer_data = self.input_data.loc[dot_on_all_data + self._start: dot_on_all_data + self._end]
+            if self._end != ':':
+                buffer_data = self.input_data.loc[dot_on_all_data + self._start: dot_on_all_data + self._end]
+            if self._end == ':':
+                buffer_data = self.input_data.loc[dot_on_all_data + self._start:]
             for single_filter in sorted(self.filters, key=lambda fil: fil.priority):
 
                 FILTER = single_filter
