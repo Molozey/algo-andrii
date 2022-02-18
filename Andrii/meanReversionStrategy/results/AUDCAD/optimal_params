@@ -1,0 +1,6 @@
+OPTIMAL_PARAMS:
+ BuyLossPercent      0.5
+BuyTakePercent      3.5
+MaxHold           20.0T
+WindowRoll        20.0T
+Y_STD             300.0
