@@ -9,7 +9,7 @@ import sys
 from sklearn.model_selection import ParameterGrid
 
 sys.setrecursionlimit(10**8)
-inp_data = pd.read_csv('testData/AUDCAD.csv', index_col=1)
+inp_data = pd.read_csv('../testData/AUDCAD.csv', index_col=1)
 # inp_data = pd.read_csv('testData/EURGBP.csv', index_col=0)
 inp_data.index = pd.to_datetime(inp_data.index)
 
@@ -161,13 +161,13 @@ def OpenPosition(dot_low_tuple, dot_high_tuple, LowBBand_tuple, HighBBand_tuple,
     if arrow_index > len(dot_low_tuple):
         return 'InCorrectData'
     # Проверка о пересечении нижней границы
-    if (dot_low_tuple[arrow_index] < LowBBand_tuple[arrow_index]) and (correct_borders[arrow_index + 1]):
+    if (dot_high_tuple[arrow_index] < LowBBand_tuple[arrow_index]) and (correct_borders[arrow_index + 1]):
         ret_dict['type_operation'] = 'BUY'
-        ret_dict['position'] = 1 * (openParams['Capital'] / dot_low_tuple[arrow_index])
-        ret_dict['open_price'] = dot_low_tuple[arrow_index]
+        ret_dict['position'] = 1 * (openParams['Capital'] / dot_high_tuple[arrow_index])
+        ret_dict['open_price'] = dot_high_tuple[arrow_index]
         ret_dict['open_index'] = arrow_index
-        ret_dict['stop_loss_border'] = round(dot_low_tuple[arrow_index] * (1 - openParams['stopLossesPercent']['BuyLossPercent']), 5)
-        ret_dict['take_profit_border'] = round(dot_low_tuple[arrow_index] * (1 + openParams['takePercent']['BuyTakePercent']), 5)
+        ret_dict['stop_loss_border'] = round(dot_high_tuple[arrow_index] * (1 - openParams['stopLossesPercent']['BuyLossPercent']), 5)
+        ret_dict['take_profit_border'] = round(dot_high_tuple[arrow_index] * (1 + openParams['takePercent']['BuyTakePercent']), 5)
 
         return ret_dict
     # Проверка о пересечении верхней границы
@@ -260,19 +260,19 @@ inp_data.index = inp_data.beautiful_time
 
 
 params = {
-    "BuyLossPercent": np.linspace(.5, 5, 4),
+    "BuyLossPercent": np.linspace(.1, 1.2, 8),
     #"SellLossPercent": [20, 30, 40],
-    "BuyTakePercent": np.linspace(.5, 5, 4),
+    "BuyTakePercent": np.linspace(.1, 1.2, 8),
     #"SellTakePercent": [20, 30, 40],
-    "MaxHold": [str(x)+'T' for x in np.linspace(100, 2450, 6)],
-    "WindowRoll": [str(x)+'T' for x in np.linspace(100, 450, 6)],
-    "Y_STD": np.linspace(10, 200, 6)
+    "MaxHold": [str(int(x))+'T' for x in np.linspace(100, 2450, 20)],
+    "WindowRoll": [str(int(x))+'T' for x in np.linspace(100, 650, 20)],
+    "Y_STD": np.linspace(10, 300, 10)
           }
 grid = ParameterGrid(params)
-shuffled = pd.DataFrame(grid).sample(frac=1, random_state=10).reset_index(drop=True)
+shuffled = pd.DataFrame(grid).sample(frac=1, random_state=20).reset_index(drop=True)
 
-SHIFT = 400_000
-RESULT = Parallel(n_jobs=-1, verbose=5, prefer="threads", require='sharedmem')(delayed(_estimator)(inp_data.copy().loc['2019-01-01': '2020-01-01'], create_grid(dict(shuffled.iloc[paramArrow])), show=False) for paramArrow in tqdm(range(shuffled[:30].shape[0])))
+# SHIFT = 400_000
+RESULT = Parallel(n_jobs=-1, verbose=5, prefer="threads", require='sharedmem')(delayed(_estimator)(inp_data.copy().loc['2019-01-01': '2020-01-01'], create_grid(dict(shuffled.iloc[paramArrow])), show=False) for paramArrow in tqdm(range(shuffled[:40].shape[0])))
 
 optParams = [_[2] for _ in RESULT]
 optParams = shuffled.iloc[optParams.index(max(optParams))]
@@ -304,6 +304,15 @@ print(f"Short trades:", round(df[df.type_operation == 'SELL'].shape[0] / df.shap
 print(f"StopLoss closes:", round(df[df.type_holding == 'stopLoss'].shape[0] / df.shape[0], 3))
 print(f"TakeProfit closes:", round(df[df.type_holding == 'takeProfit'].shape[0] / df.shape[0], 3))
 print(f"endPeriod closes:", round(df[df.type_holding == 'endPeriod'].shape[0] / df.shape[0], 3))
+
+df["own_time"] = df.close_time - df.open_time
+plt.figure(figsize=(12,9))
+plt.title('MarkOut')
+ax = plt.subplot(1,1,1)
+df.groupby(by='own_time').profit.mean().plot(marker='o', ax=ax)
+plt.legend(loc='lower left')
+plt.show()
+
 """=============================================================================================================================="""
 params = {
     "BuyLossPercent": 1,
@@ -329,7 +338,7 @@ params = {
 # print(f"Positive trades:", round(df[df.profit > 0].shape[0] / df.shape[0], 3))
 # print(f"Negative trades:", round(df[df.profit < 0].shape[0] / df.shape[0], 3))
 # print(f"Long trades:", round(df[df.type_operation == 'BUY'].shape[0] / df.shape[0], 3))
-# print(f"Short trades:", round(df[df.type_operation == 'SELLT'].shape[0] / df.shape[0], 3))
+# print(f"Short trades:", round(df[df.type_operation == 'SELL'].shape[0] / df.shape[0], 3))
 # print(f"StopLoss closes:", round(df[df.type_holding == 'stopLoss'].shape[0] / df.shape[0], 3))
 # print(f"TakeProfit closes:", round(df[df.type_holding == 'takeProfit'].shape[0] / df.shape[0], 3))
 # print(f"endPeriod closes:", round(df[df.type_holding == 'endPeriod'].shape[0] / df.shape[0], 3))
