@@ -63,7 +63,7 @@ HubStrategy.add_Rules_constructor(StrategyTFConstructor)
 #   Testing
 
 # First need to export data to Hub
-# d = pd.read_csv('zip_data/AUDCAD.csv', index_col=0)
+# d = pd.read_csv('zip_data/AUDCAD_base.csv', index_col=0)
 d = pd.read_csv('test_data/EURGBP.csv', index_col=0)
 d.index = pd.to_datetime(d.index)
 d = d.resample('1H').first()

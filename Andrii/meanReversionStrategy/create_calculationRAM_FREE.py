@@ -6,16 +6,27 @@ from joblib import Parallel, delayed
 from timeit import timeit
 import sys
 import os
+import seaborn
+import ast
 
 from sklearn.model_selection import ParameterGrid
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.decomposition import PCA
 
-sys.setrecursionlimit(10**8)
+
+
+sys.setrecursionlimit(10 ** 8)
+
+
+
 global DataFrequency
 
 DataFrequency = '1T'
 
 
-def test_data(file_name):
+
+
+def create_csv(file_name):
     PAIR_NAME = file_name.split('.')[0]
     if not os.access('backTEST', os.F_OK):
         os.mkdir('backTEST')
@@ -43,7 +54,6 @@ def test_data(file_name):
         WindowRoll = pam_grid_obj['WindowRoll']
         Y_STD = pam_grid_obj['Y_STD']
 
-
         # Массив параметров
         PARAMS = {'Capital': CAP,
                   'slippage': slippage,
@@ -51,11 +61,11 @@ def test_data(file_name):
                   'window_rolling': WindowRoll,
                   'Y_threshold': Y_STD,
                   'max_hold_period': MaxHold,
-                  'stopLossesPercent':{
+                  'stopLossesPercent': {
                       'BuyLossPercent': BuyLossPercent / 100,
                       'SellLossPercent': SellLossPercent / 100,
                   },
-                  'takePercent':{
+                  'takePercent': {
                       'SellTakePercent': BuyTakePercent / 100,
                       'BuyTakePercent': SellTakePercent / 100,
                   },
@@ -64,7 +74,6 @@ def test_data(file_name):
                   }
         del CAP, slippage, BuyLossPercent, SellLossPercent, BuyTakePercent, SellTakePercent, MaxHold, WindowRoll, Y_STD
         return PARAMS
-
 
     def calculate_max_drawdown(PNL_SERIES, dollars=True):
         """
@@ -100,18 +109,23 @@ def test_data(file_name):
         # data_frame.drop(data_frame.index[:params_dict['shift_param']], axis=0, inplace=True)
 
         # Верхний уровень BBand
-        data_frame.loc[:, 'HighBBand'] = round(data_frame.loc[:, 'rolling_mean'] + ((params_dict['Y_threshold'] / 100) * data_frame.loc[:, 'rolling_std']),5)
+        data_frame.loc[:, 'HighBBand'] = round(
+            data_frame.loc[:, 'rolling_mean'] + ((params_dict['Y_threshold'] / 100) * data_frame.loc[:, 'rolling_std']),
+            5)
 
         # Нижний уровень BBand
-        data_frame.loc[:, 'LowBBand'] = round(data_frame.loc[:, 'rolling_mean'] - ((params_dict['Y_threshold'] / 100) * data_frame.loc[:, 'rolling_std']),5)
+        data_frame.loc[:, 'LowBBand'] = round(
+            data_frame.loc[:, 'rolling_mean'] - ((params_dict['Y_threshold'] / 100) * data_frame.loc[:, 'rolling_std']),
+            5)
 
         # Добавление номера линии для удобства
         data_frame['line_number'] = range(1, data_frame.shape[0] + 1)
 
-
         # correct_borders2 = data_frame.resample(DataFrequency).first().open.shift(-1 * params_dict['time_barrier_param']).rolling(params_dict['window_rolling']).count()
         # correct_borders = tuple(data_frame.open.shift(-1 * params_dict['time_barrier_param']).rolling(params_dict['window_rolling']).count() == float(params_dict['shift_param']))
-        ab = list(zip(data_frame.copy().resample(DataFrequency).first().open.shift(-1 * params_dict['time_barrier_param'] - 1).rolling(params_dict['window_rolling']).count().values, data_frame.copy().resample(DataFrequency).first().index))
+        ab = list(zip(data_frame.copy().resample(DataFrequency).first().open.shift(
+            -1 * params_dict['time_barrier_param'] - 1).rolling(params_dict['window_rolling']).count().values,
+                      data_frame.copy().resample(DataFrequency).first().index))
         ab = pd.DataFrame(ab)
         # print('AB',len(ab))
         # print('DF',len(data_frame))
@@ -119,7 +133,8 @@ def test_data(file_name):
         ab.index = ab.time
         ab = ab.drop(['time'], axis=1)
 
-        correct_borders = tuple(pd.merge(data_frame, ab, left_index=True, right_index=True).value == params_dict['shift_param'])
+        correct_borders = tuple(
+            pd.merge(data_frame, ab, left_index=True, right_index=True).value == params_dict['shift_param'])
         # print('CB',len(correct_borders))
         dot_low_tuple = tuple(data_frame.low)
         dot_high_tuple = tuple(data_frame.high)
@@ -134,13 +149,14 @@ def test_data(file_name):
 
         while ISX < (data_frame.shape[0] / 1.1) and (cycle_buffer != ISX):
             openLogic = OpenPosition(dot_low_tuple=dot_low_tuple, dot_high_tuple=dot_high_tuple,
-                         LowBBand_tuple=LowBBand_tuple, HighBBand_tuple=HighBBand_tuple,
-                         arrow_index=ISX, openParams=params_dict, correct_borders=correct_borders)
+                                     LowBBand_tuple=LowBBand_tuple, HighBBand_tuple=HighBBand_tuple,
+                                     arrow_index=ISX, openParams=params_dict, correct_borders=correct_borders)
 
             openLogic['open_time'] = data_frame.index[openLogic['open_index']]
             closeLogic = HoldingPosition(open_logic=openLogic, dot_close_tuple=dot_close_tuple,
-                            dot_high_tuple=dot_high_tuple, dot_low_tuple=dot_low_tuple,
-                            holdParams=params_dict, arrow_index=openLogic['open_index'] + 1, time_border_counter=0)
+                                         dot_high_tuple=dot_high_tuple, dot_low_tuple=dot_low_tuple,
+                                         holdParams=params_dict, arrow_index=openLogic['open_index'] + 1,
+                                         time_border_counter=0)
 
             closeLogic['close_time'] = data_frame.index[closeLogic['close_index']]
             summary_dict = openLogic | closeLogic
@@ -152,17 +168,19 @@ def test_data(file_name):
                 tqdm_bar.update(ISX - tqdm_bar.last_print_n)
 
         dfResults = pd.DataFrame(DF_lines)
-        dfResults["profit"] = dfResults["position"] * (dfResults["close_price"] - dfResults["open_price"]) - params_dict["slippage"] if (dfResults["type_operation"] == 'BUY').bool else abs(dfResults["position"]) * (dfResults["open_price"] - dfResults["close_price"]) - params_dict["slippage"]
+        dfResults["profit"] = dfResults["position"] * (dfResults["close_price"] - dfResults["open_price"]) - \
+                              params_dict["slippage"] if (dfResults["type_operation"] == 'BUY').bool else abs(
+            dfResults["position"]) * (dfResults["open_price"] - dfResults["close_price"]) - params_dict["slippage"]
         dfResults.index = dfResults.close_time
         pnl_series = dfResults["profit"].cumsum()
-
 
         optimizePar = round(pnl_series[-1] / calculate_max_drawdown(pnl_series + params_dict['Capital']), 4)
         params_dict_opt = params_dict.copy()
         params_dict_opt['result'] = optimizePar
-        return [dfResults, data_frame, optimizePar, params_dict_opt]
+        return [optimizePar, params_dict_opt]
 
-    def OpenPosition(dot_low_tuple, dot_high_tuple, LowBBand_tuple, HighBBand_tuple, arrow_index, openParams, correct_borders):
+    def OpenPosition(dot_low_tuple, dot_high_tuple, LowBBand_tuple, HighBBand_tuple, arrow_index, openParams,
+                     correct_borders):
         """
         Проверяет возможно ли открыть сделку. В случае возможности возвращает информацию об открытой сделки
         :param current_dot:
@@ -185,8 +203,10 @@ def test_data(file_name):
             ret_dict['position'] = 1 * (openParams['Capital'] / LowBBand_tuple[arrow_index])
             ret_dict['open_price'] = LowBBand_tuple[arrow_index]
             ret_dict['open_index'] = arrow_index
-            ret_dict['stop_loss_border'] = round(LowBBand_tuple[arrow_index] * (1 - openParams['stopLossesPercent']['BuyLossPercent']), 5)
-            ret_dict['take_profit_border'] = round(LowBBand_tuple[arrow_index] * (1 + openParams['takePercent']['BuyTakePercent']), 5)
+            ret_dict['stop_loss_border'] = round(
+                LowBBand_tuple[arrow_index] * (1 - openParams['stopLossesPercent']['BuyLossPercent']), 5)
+            ret_dict['take_profit_border'] = round(
+                LowBBand_tuple[arrow_index] * (1 + openParams['takePercent']['BuyTakePercent']), 5)
 
             return ret_dict
         # Проверка о пересечении верхней границы
@@ -196,46 +216,58 @@ def test_data(file_name):
             ret_dict['open_price'] = HighBBand_tuple[arrow_index]
             ret_dict['open_index'] = arrow_index
 
-            ret_dict['stop_loss_border'] = round(HighBBand_tuple[arrow_index] * (1 + openParams['stopLossesPercent']['SellLossPercent']), 5)
-            ret_dict['take_profit_border'] = round(HighBBand_tuple[arrow_index] * (1 - openParams['takePercent']['SellTakePercent']), 5)
+            ret_dict['stop_loss_border'] = round(
+                HighBBand_tuple[arrow_index] * (1 + openParams['stopLossesPercent']['SellLossPercent']), 5)
+            ret_dict['take_profit_border'] = round(
+                HighBBand_tuple[arrow_index] * (1 - openParams['takePercent']['SellTakePercent']), 5)
             return ret_dict
         else:
             return OpenPosition(dot_low_tuple=dot_low_tuple, dot_high_tuple=dot_high_tuple,
                                 LowBBand_tuple=LowBBand_tuple, HighBBand_tuple=HighBBand_tuple,
                                 arrow_index=arrow_index + 1, openParams=openParams, correct_borders=correct_borders)
 
-    def HoldingPosition(open_logic, dot_close_tuple, dot_high_tuple, dot_low_tuple, holdParams, arrow_index, time_border_counter):
+    def HoldingPosition(open_logic, dot_close_tuple, dot_high_tuple, dot_low_tuple, holdParams, arrow_index,
+                        time_border_counter):
         if open_logic['type_operation'] == 'BUY':
             if time_border_counter - 1 > holdParams['time_barrier_param']:
-                return {'type_holding': 'endPeriod', 'close_price': dot_close_tuple[arrow_index], 'close_index': arrow_index}
+                return {'type_holding': 'endPeriod', 'close_price': dot_close_tuple[arrow_index],
+                        'close_index': arrow_index}
             elif dot_low_tuple[arrow_index] <= open_logic['stop_loss_border']:
-                return {'type_holding': 'stopLoss', 'close_price': open_logic['stop_loss_border'], 'close_index': arrow_index}
+                return {'type_holding': 'stopLoss', 'close_price': open_logic['stop_loss_border'],
+                        'close_index': arrow_index}
             elif dot_high_tuple[arrow_index] >= open_logic['take_profit_border']:
-                return {'type_holding': 'takeProfit', 'close_price': open_logic['take_profit_border'], 'close_index': arrow_index}
+                return {'type_holding': 'takeProfit', 'close_price': open_logic['take_profit_border'],
+                        'close_index': arrow_index}
 
             else:
-                return HoldingPosition(open_logic=open_logic, dot_close_tuple=dot_close_tuple, dot_high_tuple=dot_high_tuple,
+                return HoldingPosition(open_logic=open_logic, dot_close_tuple=dot_close_tuple,
+                                       dot_high_tuple=dot_high_tuple,
                                        dot_low_tuple=dot_low_tuple, holdParams=holdParams,
                                        arrow_index=arrow_index + 1, time_border_counter=time_border_counter + 1)
 
         if open_logic['type_operation'] == 'SELL':
             if time_border_counter - 1 > holdParams['time_barrier_param']:
-                return {'type_holding': 'endPeriod', 'close_price': dot_close_tuple[arrow_index], 'close_index': arrow_index}
+                return {'type_holding': 'endPeriod', 'close_price': dot_close_tuple[arrow_index],
+                        'close_index': arrow_index}
             elif dot_low_tuple[arrow_index] <= open_logic['take_profit_border']:
-                return {'type_holding': 'takeProfit', 'close_price': open_logic['take_profit_border'], 'close_index': arrow_index}
+                return {'type_holding': 'takeProfit', 'close_price': open_logic['take_profit_border'],
+                        'close_index': arrow_index}
             elif dot_high_tuple[arrow_index] >= open_logic['stop_loss_border']:
-                return {'type_holding': 'stopLoss', 'close_price': open_logic['stop_loss_border'], 'close_index': arrow_index}
+                return {'type_holding': 'stopLoss', 'close_price': open_logic['stop_loss_border'],
+                        'close_index': arrow_index}
             else:
-                return HoldingPosition(open_logic=open_logic, dot_close_tuple=dot_close_tuple, dot_high_tuple=dot_high_tuple,
+                return HoldingPosition(open_logic=open_logic, dot_close_tuple=dot_close_tuple,
+                                       dot_high_tuple=dot_high_tuple,
                                        dot_low_tuple=dot_low_tuple, holdParams=holdParams,
                                        arrow_index=arrow_index + 1, time_border_counter=time_border_counter + 1)
-    def plotter(test_df, qqq):
-        plt.figure(figsize=(16,16))
 
-        ax1 = plt.subplot(4,1,1)
+    def plotter(test_df, qqq):
+        plt.figure(figsize=(16, 16))
+
+        ax1 = plt.subplot(4, 1, 1)
         ax1.set_title('pnl graph')
         plt.step(test_df.open_time, test_df.profit.cumsum().values)
-        ax2 = plt.subplot(4,1,2, sharex=ax1)
+        ax2 = plt.subplot(4, 1, 2, sharex=ax1)
         ax2.set_title('Bbands')
         plt.plot(qqq.open, label='open', alpha=.5)
         plt.plot(qqq.high, label='high', alpha=.7, color='red')
@@ -243,7 +275,7 @@ def test_data(file_name):
         plt.plot(qqq.HighBBand, label='HighBand', alpha=.6, color='blue')
         plt.plot(qqq.LowBBand, label='LowBand', alpha=.6, color='blue')
         plt.legend(loc='lower right')
-        ax3 = plt.subplot(4,1,3, sharex=ax1)
+        ax3 = plt.subplot(4, 1, 3, sharex=ax1)
         ax3.set_title('trades histogram')
         for _ in range(test_df.shape[0]):
             if test_df.iloc[_].type_operation == 'BUY':
@@ -252,13 +284,14 @@ def test_data(file_name):
             if test_df.iloc[_].type_operation == 'SELL':
                 plt.axvline(x=test_df.iloc[_].open_time, color='red', alpha=.6, linewidth=.5)
                 plt.axvline(x=test_df.iloc[_].close_time, color='red', alpha=.6, linewidth=.5)
-            plt.hlines(xmin=test_df.iloc[_].open_time, xmax=test_df.iloc[_].close_time, y=test_df.open_price[_], color='black', linestyles='-')
-        ax4 = plt.subplot(4,1,4, sharex=ax1)
+            plt.hlines(xmin=test_df.iloc[_].open_time, xmax=test_df.iloc[_].close_time, y=test_df.open_price[_],
+                       color='black', linestyles='-')
+        ax4 = plt.subplot(4, 1, 4, sharex=ax1)
 
         plt.show()
 
     def lightPlotter(test_df, qqq, final=False, show=False):
-        plt.figure(figsize=(16,16))
+        plt.figure(figsize=(16, 16))
         if not final:
             plt.title('InSample')
         if final:
@@ -266,7 +299,7 @@ def test_data(file_name):
         ax1 = plt.subplot(2, 1, 1)
         ax1.set_title('pnl graph')
         plt.step(test_df.open_time, test_df.profit.cumsum().values)
-        ax2 = plt.subplot(2,1,2, sharex=ax1)
+        ax2 = plt.subplot(2, 1, 2, sharex=ax1)
         ax2.set_title('Bbands')
         plt.plot(qqq.open, label='open', alpha=.5)
         plt.plot(qqq.HighBBand, label='HighBand', alpha=.6, color='blue')
@@ -281,128 +314,102 @@ def test_data(file_name):
             plt.close()
 
     """WAY TO DELETE HOLIDAYS"""
-    inp_data.beautiful_time = pd.date_range(pd.Timestamp(inp_data.index.min()), pd.Timestamp(inp_data.index.min()) + pd.Timedelta(f"{inp_data.shape[0] - 1}T"), freq='1T')
+    inp_data.beautiful_time = pd.date_range(pd.Timestamp(inp_data.index.min()),
+                                            pd.Timestamp(inp_data.index.min()) + pd.Timedelta(
+                                                f"{inp_data.shape[0] - 1}T"), freq='1T')
     inp_data.index = inp_data.beautiful_time
 
-
     params = {
-        "BuyLossPercent": np.linspace(.1, 1.2, 8),
+        "BuyLossPercent": np.linspace(.1, 1.2, 12),
         #"SellLossPercent": [20, 30, 40],
-        "BuyTakePercent": np.linspace(.1, 1.2, 8),
+        "BuyTakePercent": np.linspace(.1, 1.2, 12),
         #"SellTakePercent": [20, 30, 40],
-        "MaxHold": [str(int(x))+'T' for x in np.linspace(100, 2450, 20)],
-        "WindowRoll": [str(int(x))+'T' for x in np.linspace(100, 650, 20)],
-        "Y_STD": np.linspace(10, 300, 10)
+        "MaxHold": [str(int(x))+'T' for x in np.linspace(100, 2450, 10)],
+        "WindowRoll": [str(int(x))+'T' for x in np.linspace(100, 650, 10)],
+        "Y_STD": np.linspace(100, 400, 5)
               }
     grid = ParameterGrid(params)
-    shuffled = pd.DataFrame(grid).sample(frac=1, random_state=20).reset_index(drop=True)
+    print(f"Grid len = {len(grid)}")
+    # shuffled = pd.DataFrame(grid).sample(frac=1, random_state=20).reset_index(drop=True) # OLD PARAMS
+    shuffled = pd.DataFrame(grid).sample(frac=1, random_state=22).reset_index(drop=True)
 
     # SHIFT = 400_000
-    RESULT = Parallel(n_jobs=-1, verbose=5, prefer="threads", require='sharedmem')(delayed(_estimator)(inp_data.copy().loc['2019-01-01': '2020-01-01'], create_grid(dict(shuffled.iloc[paramArrow])), show=False) for paramArrow in tqdm(range(shuffled[:].shape[0])))
+    # RESULT = Parallel(n_jobs=-1, verbose=5, prefer="threads", require='sharedmem')(delayed(_estimator)(inp_data.copy().loc['2019-01-01': '2020-01-01'], create_grid(dict(shuffled.iloc[paramArrow])), show=False) for paramArrow in tqdm(range(shuffled[:45].shape[0]))) # OLD GRID
+    RESULT = Parallel(n_jobs=-1, verbose=5, prefer="threads", require='sharedmem')(
+        delayed(_estimator)(inp_data.copy().loc['2019-01-01': '2020-01-01'],
+                            create_grid(dict(shuffled.iloc[paramArrow])), show=False) for paramArrow in
+        tqdm(range(shuffled[:245].shape[0])))
 
-    optParams = [_[2] for _ in RESULT]
+    optParams = [_[0] for _ in RESULT]
     optParams = shuffled.iloc[optParams.index(max(optParams))]
-    PARAMS_DF = pd.DataFrame([_[3] for _ in RESULT])
+    PARAMS_DF = pd.DataFrame([_[1] for _ in RESULT])
     print('OPTIMAL_PARAMS:\n', optParams)
-    df, preprocessed_data, optimizePar, total_df = _estimator(data_frame=inp_data.copy().loc['2019-01-01': '2020-01-01'], params_dict=create_grid(dict(optParams)), show=True)
+    optimizePar, total_df = _estimator(data_frame=inp_data.copy().loc['2019-01-01': '2020-01-01'],
+                                       params_dict=create_grid(dict(optParams)), show=True)
     # plotter(df, preprocessed_data)
-    lightPlotter(df, preprocessed_data)
-    print('INSAMPLE')
-    print(f"""Total trades: {df.shape[0]}
-    Total pnl {round(df.profit.cumsum().iloc[-1], 3)}
-    Positive trades: {round(df[df.profit > 0].shape[0] / df.shape[0], 3)}
-    Negative trades: {round(df[df.profit < 0].shape[0] / df.shape[0], 3)}
-    Long trades: {round(df[df.type_operation == 'BUY'].shape[0] / df.shape[0], 3)}
-    Short trades: {round(df[df.type_operation == 'SELL'].shape[0] / df.shape[0], 3)}
-    StopLoss closes: {round(df[df.type_holding == 'stopLoss'].shape[0] / df.shape[0], 3)}
-    TakeProfit closes: {round(df[df.type_holding == 'takeProfit'].shape[0] / df.shape[0], 3)}
-    endPeriod closes: {round(df[df.type_holding == 'endPeriod'].shape[0] / df.shape[0], 3)}
-    """)
+    # lightPlotter(df, preprocessed_data)
+    # print('INSAMPLE')
+    # print(f"""Total trades: {df.shape[0]}
+    # Total pnl {round(df.profit.cumsum().iloc[-1], 3)}
+    # Positive trades: {round(df[df.profit > 0].shape[0] / df.shape[0], 3)}
+    # Negative trades: {round(df[df.profit < 0].shape[0] / df.shape[0], 3)}
+    # Long trades: {round(df[df.type_operation == 'BUY'].shape[0] / df.shape[0], 3)}
+    # Short trades: {round(df[df.type_operation == 'SELL'].shape[0] / df.shape[0], 3)}
+    # StopLoss closes: {round(df[df.type_holding == 'stopLoss'].shape[0] / df.shape[0], 3)}
+    # TakeProfit closes: {round(df[df.type_holding == 'takeProfit'].shape[0] / df.shape[0], 3)}
+    # endPeriod closes: {round(df[df.type_holding == 'endPeriod'].shape[0] / df.shape[0], 3)}
+    # """)
 
-    with open(f'backTEST/{PAIR_NAME}/best_InSample_stat.txt', 'w') as file:
-        file.writelines(f"""
-            Total trades:, {df.shape[0]}
-            Total pnl, {round(df.profit.cumsum().iloc[-1], 3)}
-            Positive trades:, {round(df[df.profit > 0].shape[0] / df.shape[0], 3)}
-            Negative trades:, {round(df[df.profit < 0].shape[0] / df.shape[0], 3)}
-            Long trades:, {round(df[df.type_operation == 'BUY'].shape[0] / df.shape[0], 3)}
-            Short trades:, {round(df[df.type_operation == 'SELL'].shape[0] / df.shape[0], 3)}
-            StopLoss closes:, {round(df[df.type_holding == 'stopLoss'].shape[0] / df.shape[0], 3)}
-            TakeProfit closes:, {round(df[df.type_holding == 'takeProfit'].shape[0] / df.shape[0], 3)}
-            endPeriod closes:, {round(df[df.type_holding == 'endPeriod'].shape[0] / df.shape[0], 3)}
-            """)
+    # with open(f'backTEST/{PAIR_NAME}/best_InSample_stat.txt', 'w') as file:
+    #     file.writelines(f"""
+    #         Total trades:, {df.shape[0]}
+    #         Total pnl, {round(df.profit.cumsum().iloc[-1], 3)}
+    #         Positive trades:, {round(df[df.profit > 0].shape[0] / df.shape[0], 3)}
+    #         Negative trades:, {round(df[df.profit < 0].shape[0] / df.shape[0], 3)}
+    #         Long trades:, {round(df[df.type_operation == 'BUY'].shape[0] / df.shape[0], 3)}
+    #         Short trades:, {round(df[df.type_operation == 'SELL'].shape[0] / df.shape[0], 3)}
+    #         StopLoss closes:, {round(df[df.type_holding == 'stopLoss'].shape[0] / df.shape[0], 3)}
+    #         TakeProfit closes:, {round(df[df.type_holding == 'takeProfit'].shape[0] / df.shape[0], 3)}
+    #         endPeriod closes:, {round(df[df.type_holding == 'endPeriod'].shape[0] / df.shape[0], 3)}
+    #         """)
 
-    df, preprocessed_data, optimizePar, total_df = _estimator(data_frame=inp_data.copy().loc['2020-01-01': '2021-01-01'], params_dict=create_grid(dict(optParams)), show=True)
+    optimizePar, total_df = _estimator(data_frame=inp_data.copy().loc['2020-01-01': '2021-01-01'],
+                                       params_dict=create_grid(dict(optParams)), show=True)
     # plotter(df, preprocessed_data)
-    lightPlotter(df, preprocessed_data, final=True)
-    print('OUTOFSAMPLE')
-    print(f"""Total trades: {df.shape[0]}
-    Total pnl {round(df.profit.cumsum().iloc[-1], 3)}
-    Positive trades: {round(df[df.profit > 0].shape[0] / df.shape[0], 3)}
-    Negative trades: {round(df[df.profit < 0].shape[0] / df.shape[0], 3)}
-    Long trades: {round(df[df.type_operation == 'BUY'].shape[0] / df.shape[0], 3)}
-    Short trades: {round(df[df.type_operation == 'SELL'].shape[0] / df.shape[0], 3)}
-    StopLoss closes: {round(df[df.type_holding == 'stopLoss'].shape[0] / df.shape[0], 3)}
-    TakeProfit closes: {round(df[df.type_holding == 'takeProfit'].shape[0] / df.shape[0], 3)}
-    endPeriod closes: {round(df[df.type_holding == 'endPeriod'].shape[0] / df.shape[0], 3)}
-    """)
-
-    with open(f'backTEST/{PAIR_NAME}/outsample_stat.txt', 'w') as file:
-        file.writelines(f"""
-            Total trades:, {df.shape[0]}
-            Total pnl, {round(df.profit.cumsum().iloc[-1], 3)}
-            Positive trades:, {round(df[df.profit > 0].shape[0] / df.shape[0], 3)}
-            Negative trades:, {round(df[df.profit < 0].shape[0] / df.shape[0], 3)}
-            Long trades:, {round(df[df.type_operation == 'BUY'].shape[0] / df.shape[0], 3)}
-            Short trades:, {round(df[df.type_operation == 'SELL'].shape[0] / df.shape[0], 3)}
-            StopLoss closes:, {round(df[df.type_holding == 'stopLoss'].shape[0] / df.shape[0], 3)}
-            TakeProfit closes:, {round(df[df.type_holding == 'takeProfit'].shape[0] / df.shape[0], 3)}
-            endPeriod closes:, {round(df[df.type_holding == 'endPeriod'].shape[0] / df.shape[0], 3)}
-            """)
-
-    df["own_time"] = df.close_time - df.open_time
-    plt.figure(figsize=(12,9))
-    plt.title('MarkOut')
-    ax = plt.subplot(1,1,1)
-    df.groupby(by='own_time').profit.mean().plot(marker='o', ax=ax)
-    plt.legend(loc='lower left')
-    plt.show()
-
-
-
+    # lightPlotter(df, preprocessed_data, final=True)
+    # print('OUTOFSAMPLE')
+    # print(f"""Total trades: {df.shape[0]}
+    # Total pnl {round(df.profit.cumsum().iloc[-1], 3)}
+    # Positive trades: {round(df[df.profit > 0].shape[0] / df.shape[0], 3)}
+    # Negative trades: {round(df[df.profit < 0].shape[0] / df.shape[0], 3)}
+    # Long trades: {round(df[df.type_operation == 'BUY'].shape[0] / df.shape[0], 3)}
+    # Short trades: {round(df[df.type_operation == 'SELL'].shape[0] / df.shape[0], 3)}
+    # StopLoss closes: {round(df[df.type_holding == 'stopLoss'].shape[0] / df.shape[0], 3)}
+    # TakeProfit closes: {round(df[df.type_holding == 'takeProfit'].shape[0] / df.shape[0], 3)}
+    # endPeriod closes: {round(df[df.type_holding == 'endPeriod'].shape[0] / df.shape[0], 3)}
+    # """)
+    #
+    # with open(f'backTEST/{PAIR_NAME}/outsample_stat.txt', 'w') as file:
+    #     file.writelines(f"""
+    #         Total trades:, {df.shape[0]}
+    #         Total pnl, {round(df.profit.cumsum().iloc[-1], 3)}
+    #         Positive trades:, {round(df[df.profit > 0].shape[0] / df.shape[0], 3)}
+    #         Negative trades:, {round(df[df.profit < 0].shape[0] / df.shape[0], 3)}
+    #         Long trades:, {round(df[df.type_operation == 'BUY'].shape[0] / df.shape[0], 3)}
+    #         Short trades:, {round(df[df.type_operation == 'SELL'].shape[0] / df.shape[0], 3)}
+    #         StopLoss closes:, {round(df[df.type_holding == 'stopLoss'].shape[0] / df.shape[0], 3)}
+    #         TakeProfit closes:, {round(df[df.type_holding == 'takeProfit'].shape[0] / df.shape[0], 3)}
+    #         endPeriod closes:, {round(df[df.type_holding == 'endPeriod'].shape[0] / df.shape[0], 3)}
+    #         """)
+    #
+    # df["own_time"] = df.close_time - df.open_time
+    # plt.figure(figsize=(12,9))
+    # plt.title('MarkOut')
+    # ax = plt.subplot(1,1,1)
+    # df.groupby(by='own_time').profit.mean().plot(marker='o', ax=ax)
+    # plt.legend(loc='lower left')
+    # plt.show()
 
     pd.DataFrame(PARAMS_DF).to_csv(f'backTEST/{PAIR_NAME}/result_{PAIR_NAME}.csv')
 
-
-    """=============================================================================================================================="""
-    # params = {
-    #     "BuyLossPercent": .5,
-    #     #"SellLossPercent": [20, 30, 40],
-    #     "BuyTakePercent": .5,
-    #     #"SellTakePercent": [20, 30, 40],
-    #     "MaxHold": '360T',
-    #     "WindowRoll": '120T',
-    #     "Y_STD": 280
-    #           }
-    #
-    #
-    #
-    #
-    # inp_data.beautiful_time = pd.date_range(pd.Timestamp(inp_data.index.min()), pd.Timestamp(inp_data.index.min()) + pd.Timedelta(f"{inp_data.shape[0] - 1}T"), freq='1T')
-    # inp_data.index = inp_data.beautiful_time
-    # df, preprocessed_data, optimizePar, created_df = _estimator(data_frame=inp_data.copy().loc['2019-01':'2019-08'], params_dict=create_grid(params), show=True)
-    # print('Calculated...')
-    # lightPlotter(df, preprocessed_data)
-    # print(f"Total trades:", df.shape[0])
-    # print(f"Total pnl", round(df.profit.cumsum().iloc[-1], 3))
-    # print(f"Positive trades:", round(df[df.profit > 0].shape[0] / df.shape[0], 3))
-    # print(f"Negative trades:", round(df[df.profit < 0].shape[0] / df.shape[0], 3))
-    # print(f"Long trades:", round(df[df.type_operation == 'BUY'].shape[0] / df.shape[0], 3))
-    # print(f"Short trades:", round(df[df.type_operation == 'SELL'].shape[0] / df.shape[0], 3))
-    # print(f"StopLoss closes:", round(df[df.type_holding == 'stopLoss'].shape[0] / df.shape[0], 3))
-    # print(f"TakeProfit closes:", round(df[df.type_holding == 'takeProfit'].shape[0] / df.shape[0], 3))
-    # print(f"endPeriod closes:", round(df[df.type_holding == 'endPeriod'].shape[0] / df.shape[0], 3))
-    # print(pd.DataFrame(created_df))
-
-
-test_data('AUDCAD_base.csv')
+create_csv('AUDCAD.csv')
