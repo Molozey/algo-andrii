@@ -21,6 +21,7 @@ if args['instrument'] == None:
     print('Use -h to get info about a program.')
     print('Currently available instruments:')
     print(df)
+    print(df.name.values)
 
     exit()
 
