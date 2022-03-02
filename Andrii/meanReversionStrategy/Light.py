@@ -345,7 +345,7 @@ def create_csv(file_name, numberST):
         "MaxHold": [str(int(x))+'T' for x in np.linspace(40, 950, 12)],
         "WindowRoll": [str(int(x))+'T' for x in np.linspace(40, 400, 10)],
         "Y_STD":[round(x, 2) for x in np.linspace(130, 300, 10)],
-        'caretteHYP': [10, 40]
+        'caretteHYP': [10]
               }
     grid = ParameterGrid(params)
     print(f"Grid len = {len(grid)}")

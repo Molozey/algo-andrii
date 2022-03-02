@@ -145,20 +145,8 @@ def create_csv(file_name, numberST):
             # Добавление номера линии для удобства
             data_frame['line_number'] = range(1, data_frame.shape[0] + 1)
 
-            # correct_borders2 = data_frame.resample(DataFrequency).first().open.shift(-1 * params_dict['time_barrier_param']).rolling(params_dict['window_rolling']).count()
-            # correct_borders = tuple(data_frame.open.shift(-1 * params_dict['time_barrier_param']).rolling(params_dict['window_rolling']).count() == float(params_dict['shift_param']))
-            ab = list(zip(data_frame.copy().resample(DataFrequency).first().open.shift(
-                -1 * params_dict['time_barrier_param'] - 1).rolling(params_dict['window_rolling']).count().values,
-                          data_frame.copy().resample(DataFrequency).first().index))
-            ab = pd.DataFrame(ab)
-            # print('AB',len(ab))
-            # print('DF',len(data_frame))
-            ab.columns = ['value', 'time']
-            ab.index = ab.time
-            ab = ab.drop(['time'], axis=1)
 
-            correct_borders = tuple(
-                pd.merge(data_frame, ab, left_index=True, right_index=True).value == params_dict['shift_param'])
+            correct_borders = []
             # print('CB',len(correct_borders))
             dot_low_tuple = tuple(data_frame.low)
             dot_high_tuple = tuple(data_frame.high)
@@ -250,7 +238,7 @@ def create_csv(file_name, numberST):
             return arrow_index
 
         # Проверка о пересечении нижней границы
-        if (dot_low_tuple[arrow_index] < LowBBand_tuple[arrow_index]) and (correct_borders[arrow_index + 1]):
+        if (dot_low_tuple[arrow_index] < LowBBand_tuple[arrow_index]):
             if vrRatio(opens[arrow_index-1 - int(pd.Timedelta(openParams['variance_ratio_lookback']) / '1T'):arrow_index-1], openParams['variance_ration_carette']) < openParams['VR']:
                 ret_dict['type_operation'] = 'BUY'
                 ret_dict['position'] = 1 * (openParams['Capital'] / LowBBand_tuple[arrow_index])
@@ -266,7 +254,7 @@ def create_csv(file_name, numberST):
                     arrow_index=arrow_index + 1, openParams=openParams, correct_borders=correct_borders, opens=opens, recursion_limiter=recursion_limiter+1)
 
         # Проверка о пересечении верхней границы
-        if (dot_high_tuple[arrow_index] > HighBBand_tuple[arrow_index]) and (correct_borders[arrow_index + 1]):
+        if (dot_high_tuple[arrow_index] > HighBBand_tuple[arrow_index]):
             if vrRatio(opens[arrow_index-1 - int(pd.Timedelta(openParams['variance_ratio_lookback']) / '1T'):arrow_index-1], openParams['variance_ration_carette']) < openParams['VR']:
                 ret_dict['type_operation'] = 'SELL'
                 ret_dict['position'] = -1 * (openParams['Capital'] / HighBBand_tuple[arrow_index])
@@ -485,7 +473,7 @@ def create_csv(file_name, numberST):
 
 parser = argparse.ArgumentParser(description='Creates csv into backTest dir')
 parser.add_argument('--file', help='filename at testData without csv')
-parser.add_argument('--approx', help='number of insample strategies', default=240)
+parser.add_argument('--approx', help='number of insample strategies', default=5240)
 args = parser.parse_args()
 
 create_csv(f'{args.file}.csv', numberST=int(args.approx))
