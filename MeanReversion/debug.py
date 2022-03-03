@@ -199,6 +199,7 @@ def close_position(arrowIndex, recursionFilter, openDict, LowTuple, HighTuple, O
     :param indicatorVR:
     :return:
     """
+    NOT_NONE_SAVER = True
     _recursion_limit = 10_000
 
     if recursionFilter > _recursion_limit:
@@ -310,6 +311,15 @@ def close_position(arrowIndex, recursionFilter, openDict, LowTuple, HighTuple, O
                       retTuple=retTuple, timeBorderCounter=timeBorderCounter+1,
                       indicatorVR=indicatorVR)
 
+    if NOT_NONE_SAVER:
+        return close_position(arrowIndex=arrowIndex + 1, recursionFilter=recursionFilter + 1,
+                              openDict=openDict, LowTuple=LowTuple, HighTuple=HighTuple,
+                              OpenTuple=OpenTuple, LightMeanTuple=LightMeanTuple,
+                              FatMeanTuple=FatMeanTuple, params=params, logTuple=logTuple,
+                              retTuple=retTuple, timeBorderCounter=timeBorderCounter + 1,
+                              indicatorVR=indicatorVR)
+
+
 startParams = create_grid(initParameters)
 cookedData = cook_data(df=inpData.copy(), params=startParams)
 
@@ -343,7 +353,6 @@ for i in range(50):
                 closePos = closePos[0]
 
     total_dict = {**openPOS, **closePos}
-    print(total_dict)
     RESULT.append(total_dict)
     openPOS = closePos['closeIndex'] + 1
 RESULT = pd.DataFrame(RESULT)
