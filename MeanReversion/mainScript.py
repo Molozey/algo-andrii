@@ -460,18 +460,22 @@ def _estimator(dataFrame, gridParams: dict, show=False):
                                     params=parameters, reqCounter=0, preComputed=preComputed)
 
                 if (isinstance(openPosition, str)) and (openPosition == 'STOP_IT_PLEASE'):
-                    retDF = pd.DataFrame(statistics)
-                    retDF['profit'] = (retDF["position"] * (retDF["closePrice"] - retDF["openPrice"]) - parameters['slippage'] if (retDF["typeOperation"] == 'BUY').bool else abs(retDF["position"]) * (retDF["openPrice"] - retDF["closePrice"]) - parameters['slippage'])
-                    retDF.index = retDF.openIndex
-                    stepDF = pd.DataFrame(index=pd.RangeIndex(min(retDF.openIndex), max(retDF.openIndex)))
-                    stepPnl = stepDF.merge(retDF, left_index=True, right_index=True, how='outer').profit.replace(np.nan, 0).cumsum()
-                    del stepDF
-                    TPNL = stepPnl.iloc[-1]
-                    if show:
-                        print(TPNL)
-                    PNLDD = TPNL / calculate_max_drawdown(stepPnl)
-                    totalMetric = pd.Series({**parameters, 'PNLDD': PNLDD, 'TotalPNL': TPNL})
-                    return statistics, totalMetric
+                    try:
+                        retDF = pd.DataFrame(statistics)
+                        retDF['profit'] = (retDF["position"] * (retDF["closePrice"] - retDF["openPrice"]) - parameters['slippage'] if (retDF["typeOperation"] == 'BUY').bool else abs(retDF["position"]) * (retDF["openPrice"] - retDF["closePrice"]) - parameters['slippage'])
+                        retDF.index = retDF.openIndex
+                        stepDF = pd.DataFrame(index=pd.RangeIndex(min(retDF.openIndex), max(retDF.openIndex)))
+                        stepPnl = stepDF.merge(retDF, left_index=True, right_index=True, how='outer').profit.replace(np.nan, 0).cumsum()
+                        del stepDF
+                        TPNL = stepPnl.iloc[-1]
+                        if show:
+                            print(TPNL)
+                        PNLDD = TPNL / calculate_max_drawdown(stepPnl)
+                        totalMetric = pd.Series({**parameters, 'PNLDD': PNLDD, 'TotalPNL': TPNL})
+                        return statistics, totalMetric
+                    except KeyError:
+                        return '_estimatorLag', {'None': None}
+
 
                 if not isinstance(openPosition, dict):
                     delta = openPosition - openShift
@@ -643,14 +647,20 @@ def strategy_real_time_optimize(dataFrame, parameters, show=True):
         # print('----' * 10)
         optimalParams = create_strategy_config(optimalParams)
         statistics, totalMetric = _estimator(dataFrame.iloc[POSITION: POSITION + _TRADE_TIME].copy(), gridParams=optimalParams, show=False)
-        statistics = pd.DataFrame(statistics)
-        if not statistics.empty:
+        if isinstance(statistics, str):
+            print('estimatoerLag')
+            POSITION += 1_000
+            continue
+        if not pd.DataFrame(statistics).empty:
+            statistics = pd.DataFrame(statistics)
             statistics['openIndex'] = statistics['openIndex'] + POSITION
             statistics['closeIndex'] = statistics['closeIndex'] + POSITION
             POSITION = statistics['closeIndex'].iloc[-1]
             RealTimeOptimizeTrades.append(statistics)
         else:
-            break
+            print('emptyStat')
+            POSITION += 1000
+            continue
         if show:
             tqdm_bar.update(POSITION - tqdm_bar.last_print_n)
 
