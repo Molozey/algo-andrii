@@ -7,7 +7,7 @@ import matplotlib.pylab as plt
 
 import pandas as pd
 import numpy as np
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 from sklearn.model_selection import ParameterGrid
 from sklearn import linear_model
@@ -458,13 +458,6 @@ def _estimator(dataFrame, gridParams: dict, show=False):
                 openPosition = open_position(position=openShift,
                                     dataFrame=dataFrame.iloc[POS - leftShift: POS + rightShift + 1],
                                     params=parameters, reqCounter=0, preComputed=preComputed)
-                if not isinstance(openPosition, dict):
-                    delta = openPosition - openShift
-                    POS += delta
-
-                    preComputed = {'logTuple': np.log(dataFrame.open.iloc[POS - leftShift - 1: POS + rightShift].copy())}
-                    preComputed['retTuple'] = preComputed['logTuple'].diff()[1:]
-                    preComputed['logTuple'] = preComputed['logTuple'][1:]
 
                 if (isinstance(openPosition, str)) and (openPosition == 'STOP_IT_PLEASE'):
                     retDF = pd.DataFrame(statistics)
@@ -479,6 +472,15 @@ def _estimator(dataFrame, gridParams: dict, show=False):
                     PNLDD = TPNL / calculate_max_drawdown(stepPnl)
                     totalMetric = pd.Series({**parameters, 'PNLDD': PNLDD, 'TotalPNL': TPNL})
                     return statistics, totalMetric
+
+                if not isinstance(openPosition, dict):
+                    delta = openPosition - openShift
+                    POS += delta
+
+                    preComputed = {'logTuple': np.log(dataFrame.open.iloc[POS - leftShift - 1: POS + rightShift].copy())}
+                    preComputed['retTuple'] = preComputed['logTuple'].diff()[1:]
+                    preComputed['logTuple'] = preComputed['logTuple'][1:]
+
 
             openDict = openPosition['openDict']
             openDict['openIndex'] = openDict['openIndex'] - openShift + POS
