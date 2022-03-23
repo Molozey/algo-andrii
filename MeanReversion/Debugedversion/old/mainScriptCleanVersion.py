@@ -14,6 +14,9 @@ from sklearn import linear_model
 
 
 global systemDivide
+global ESTIMATORSIMPLIFIER
+global OPTIMIZESIMPLIFIER
+
 global RecursionBorder
 
 if platform.platform().split('-')[0] == 'macOS':
@@ -27,7 +30,7 @@ sys.setrecursionlimit(10 ** 5)
 
 pairName = 'CHFJPY.csv'
 
-inpData = pd.read_csv(f"testData{systemDivide}{pairName}", index_col=1)
+inpData = pd.read_csv(f"../testData{systemDivide}{pairName}", index_col=1)
 # Какие колонки нужны для работы
 columns = ['open', 'high', 'low', 'close']
 inpData = inpData[columns]
@@ -63,7 +66,7 @@ def create_strategy_config(params):
         # Сколько времени мы не торгуем после срабатывания стоп лосса
         'restAfterLoss': params['restAfterLoss'],
         # Сколько времени мы не торгуем после закрытия позиции о большую скользяшку
-        'restAfterFatProfit' : params['restAfterFatProfit'],
+        'restAfterFatProfit': params['restAfterFatProfit'],
         # Процент стоп лосса
         'stopLossStdMultiplier': round(params['stopLossStdMultiplier'] / 100, 3),
         # Процент тэйк профита
@@ -129,9 +132,11 @@ def variance_ratio(logTuple: tuple, retTuple: tuple, params: dict) -> bool:
     buffer_size = len(retTuple)
     means = (1 / buffer_size) * np.sum(retTuple)
     # сдвиг во времени q
-    m = params['varianceRatioCarrete'] * (buffer_size - params['varianceRatioCarrete'] + 1 ) * (1 - (params['varianceRatioCarrete'] / buffer_size))
+    m = params['varianceRatioCarrete'] * (buffer_size - params['varianceRatioCarrete'] + 1) \
+        * (1 - (params['varianceRatioCarrete'] / buffer_size))
     sigma_a = (1 / (buffer_size - 1)) * np.sum(np.square(np.subtract(retTuple, means)))
-    subtract_returns = np.subtract(logTuple, np.roll(logTuple, params['varianceRatioCarrete']))[params['varianceRatioCarrete']:]
+    subtract_returns = np.subtract(logTuple,
+                                   np.roll(logTuple, params['varianceRatioCarrete']))[params['varianceRatioCarrete']:]
     _buff_ = np.sum(np.square(subtract_returns - params['varianceRatioCarrete'] * means))
     try:
         sigma_b = (1 / m) * _buff_
@@ -148,7 +153,7 @@ def variance_ratio(logTuple: tuple, retTuple: tuple, params: dict) -> bool:
 
 def reverse_variance_ratio(preComputed, params: dict, timeBorderCounter: int, VRstatement=False) -> bool:
     """
-    Возвращает значение variacne ratio. Необходимо для понимания того, можно ли открывать сделку
+    Возвращает значение variance ratio. Необходимо для понимания того, можно ли открывать сделку
     :param preComputed: Заранее просчитанные логарифмы и возвраты
     :param params: список параметров из create_grid
     :param timeBorderCounter: Штука показывающая сколько мы находимся в сделке
@@ -164,7 +169,7 @@ def reverse_variance_ratio(preComputed, params: dict, timeBorderCounter: int, VR
             buffer_size = len(retTuple)
             means = (1 / buffer_size) * np.sum(retTuple)
             # сдвиг во времени q
-            m = timeBorderCounter * (buffer_size - timeBorderCounter + 1 ) * (1 - (timeBorderCounter / buffer_size))
+            m = timeBorderCounter * (buffer_size - timeBorderCounter + 1) * (1 - (timeBorderCounter / buffer_size))
             sigma_a = (1 / (buffer_size - 1)) * np.sum(np.square(np.subtract(retTuple, means)))
             subtract_returns = np.subtract(logTuple, np.roll(logTuple, timeBorderCounter))[timeBorderCounter:]
             _buff_ = np.sum(np.square(subtract_returns - timeBorderCounter * means))
@@ -226,7 +231,8 @@ def open_position(position, dataFrame, params, reqCounter, preComputed):
         # Получить время полураспада для генерации параметров сделки
         half_time = int(get_half_time(dataFrame.close[position-params['scanHalfTime']:position]))
         if (half_time > params['scanHalfTime']) or (half_time < 0):
-            return open_position(position=position+1, dataFrame=dataFrame, params=params, reqCounter=reqCounter+1, preComputed=preComputed)
+            return open_position(position=position+1, dataFrame=dataFrame, params=params,
+                                 reqCounter=reqCounter+1, preComputed=preComputed)
 
         localParams["rollingMean"] = int(half_time * params['halfToLight'])
         localParams["fatRollingMean"] = int(params['halfToFat'] * half_time)
@@ -235,26 +241,28 @@ def open_position(position, dataFrame, params, reqCounter, preComputed):
             localParams["timeBarrier"] = 1
 
         localParams["varianceLookBack"] = int(half_time * params['halfToFat'])
-        localParams["varianceRatioCarrete"] = int((half_time * params['halfToFat']) // params['varianceRatioCarreteParameter']) + 1
+        localParams["varianceRatioCarrete"] = int((half_time *
+                                                   params['halfToFat']) // params['varianceRatioCarreteParameter']) + 1
         # Считаем локальные барьеры открытия сделки
         bands_roll = dataFrame.open.iloc[position-half_time:position].rolling(localParams["rollingMean"])
         bands_mean = bands_roll.mean().iloc[-1]
         bands_std = bands_roll.std().iloc[-1]
-        low_band = round(bands_mean - bands_std * params['yThreshold'],3)
-        high_band = round(bands_mean + bands_std * params['yThreshold'],3)
+        low_band = round(bands_mean - bands_std * params['yThreshold'], 3)
+        high_band = round(bands_mean + bands_std * params['yThreshold'], 3)
 
         if (dataFrame.open[position] > low_band) and (dataFrame.low[position] < low_band):
             # Если это так, то убеждаемся что можем открыть сделку проводя тест
             # VR_RATIO (LOOKBACK={HYPERPARAMETER}, time_laq===q={HYPERPARAMETER})
             if variance_ratio(logTuple=preComputed["logTuple"][position - localParams['varianceLookBack']:position],
-                          retTuple=preComputed["retTuple"][position - localParams['varianceLookBack']:position],params=localParams):
+                              retTuple=preComputed["retTuple"][position - localParams['varianceLookBack']:position],
+                              params=localParams):
                 # Формируем удобочитаемый тип return функции
                 openDict['typeOperation'] = 'BUY'
                 openDict['position'] = round(params['capital'] / low_band, 3)
                 openDict['openPrice'] = low_band
                 openDict['openIndex'] = position
-                openDict['stopLossBorder'] = round(low_band - params['stopLossStdMultiplier'] * bands_std,3)
-                openDict['takeProfitBorder'] = round(low_band + params['takeProfitStdMultiplier'] * bands_std,3)
+                openDict['stopLossBorder'] = round(low_band - params['stopLossStdMultiplier'] * bands_std, 3)
+                openDict['takeProfitBorder'] = round(low_band + params['takeProfitStdMultiplier'] * bands_std, 3)
                 TRIGGER = True
                 return {'openDict': openDict, 'params': localParams}
 
@@ -262,23 +270,28 @@ def open_position(position, dataFrame, params, reqCounter, preComputed):
             # Если это так, то убеждаемся что можем открыть сделку проводя тест
             # VR_RATIO (LOOKBACK={HYPERPARAMETER}, time_laq===q={HYPERPARAMETER})
             if variance_ratio(logTuple=preComputed["logTuple"][position - localParams['varianceLookBack']:position],
-                          retTuple=preComputed["retTuple"][position - localParams['varianceLookBack']:position],params=localParams):
+                              retTuple=preComputed["retTuple"][position - localParams['varianceLookBack']:position],
+                              params=localParams):
                 # Формируем удобочитаемый тип return функции
                 openDict['typeOperation'] = 'SELL'
                 openDict['position'] = round(-1 * (params['capital'] / high_band), 3)
                 openDict['openPrice'] = high_band
                 openDict['openIndex'] = position
-                openDict['stopLossBorder'] = round(high_band + params['stopLossStdMultiplier'] * bands_std,3)
-                openDict['takeProfitBorder'] = round(high_band - params['takeProfitStdMultiplier'] * bands_std,3)
+                openDict['stopLossBorder'] = round(high_band + params['stopLossStdMultiplier'] * bands_std, 3)
+                openDict['takeProfitBorder'] = round(high_band - params['takeProfitStdMultiplier'] * bands_std, 3)
                 TRIGGER = True
                 return {'openDict': openDict, 'params': localParams}
 
-        # В случае, если сделку открыть не получилось, переходим к следующей точке. Вывод - пока что сделку не получилось
-        # В real-time это является аналогом ожидания до появления следующих данных и повторения проверки на открытие уже на них
+        # В случае, если сделку открыть не получилось, переходим к следующей точке.
+        # Вывод - пока что сделку не получилось
+        # В real-time это является аналогом ожидания до появления следующих данных и повторения
+        # проверки на открытие уже на них
         if not TRIGGER:
-            return open_position(position=position+1, dataFrame=dataFrame, params=params, reqCounter=reqCounter+1, preComputed=preComputed)
+            return open_position(position=position+1, dataFrame=dataFrame, params=params, reqCounter=reqCounter+1,
+                                 preComputed=preComputed)
 
-    except IndexError:
+    # except TypeError:
+    except:
         print('Warning in openPosition')
         return 'STOP_IT_PLEASE'
 
@@ -291,18 +304,20 @@ def close_position(position, openDict, dataFrame, localParams, reqCounter, preCo
 
         if borderCounter == localParams['timeBarrier']:
             return {'typeHolding': 'endPeriod', 'closePrice': dataFrame.open[position+1],
-                            'closeIndex': position+1}
+                    'closeIndex': position+1}
 
         elif openDict['typeOperation'] == 'BUY':
             # Стоп лосс условие
-            if (dataFrame.open[position] > openDict['stopLossBorder']) and (dataFrame.low[position] < openDict['stopLossBorder']):
+            if (dataFrame.open[position] > openDict['stopLossBorder']) and (dataFrame.low[position] <
+                                                                            openDict['stopLossBorder']):
                 return {'typeHolding': 'stopLoss', 'closePrice': openDict['stopLossBorder'],
-                            'closeIndex': position}
+                        'closeIndex': position}
             if dataFrame.open[position] < openDict['stopLossBorder']:
                 return {'typeHolding': 'stopLoss', 'closePrice': dataFrame.open[position],
-                            'closeIndex': position}
+                        'closeIndex': position}
             # Smart mean crossing
-            # Проверяем адекватное расположение между открытием и скользящей малой. Причина этого такая же как для open_position
+            # Проверяем адекватное расположение между открытием и скользящей малой.
+            # Причина этого такая же как для open_position
             # Читай в чем суть - выше!
             elif (dataFrame.open[position] < preComputed["rollMean"][position]) and (not indicatorVR):
                 # Проверяем что можно закрыть лонг о пересечение с малой скользящей
@@ -310,31 +325,34 @@ def close_position(position, openDict, dataFrame, localParams, reqCounter, preCo
                     # Проверяем можно ли продолжить удержание позиции. Делаем это через VariacneRatio за какой-то период
                     # arrowIndex - params['varianceLookBack'], где varianceLookBack - гиперпараметр стратегии.
                     # Временной лаг Q для VARIANCE_RATIO определяется как время что мы находимся в позиции
-                    # Если VarianceRatio показывает что данные стали TrendFollowing - мы меняем режим стратегии на попытку закерыться
+                    # Если VarianceRatio показывает что данные стали TrendFollowing - мы меняем режим
+                    # стратегии на попытку закрыться
                     # О скользящее среднее за больший период. Так мы получим большую прибыль
                     if preComputed["rollMean"][position] < preComputed["fatMean"][position]:
                         if reverse_variance_ratio(preComputed=preComputed,
-                                          params=localParams, timeBorderCounter=borderCounter+1):
+                                                  params=localParams, timeBorderCounter=borderCounter+1):
                             #   Local Trend Following recursion
                             return close_position(position=position+1, dataFrame=dataFrame, reqCounter=reqCounter+1,
                                                   openDict=openDict, localParams=localParams, preComputed=preComputed,
                                                   borderCounter=borderCounter+1, indicatorVR=True)
 
                         else:
-                            # Если VR RATIO не показал возможность попытаться закрыться о большую скользяшку, то закрываемся
-                            # о малую
+                            # Если VR RATIO не показал возможность попытаться
+                            # закрыться о большую скользяшку, то закрываемся о малую
                             return {'typeHolding': 'lightCross', 'closePrice': preComputed["rollMean"][position],
-                                    'closeIndex': position }
+                                    'closeIndex': position}
                             pass
 
                     else:
-                        # Может быть так, что скольщяшее среднее за больший период находится выше чем скользящее за малый период
-                        # Если учесть что мы торгуем на тех инструментах что показывают большую склонность к meanReversion
-                        # такая ситуцация говорит нам что нужно как можно скорей сбрасывать позицию.
+                        # Может быть так, что скольщяшее среднее за больший период находится выше чем
+                        # скользящее за малый период
+                        # Если учесть что мы торгуем на тех инструментах что показывают большую склонность
+                        # к meanReversion такая ситуация говорит нам что нужно как можно скорей сбрасывать позицию.
                         return {'typeHolding': 'lightCrossEmergent', 'closePrice': preComputed["rollMean"][position],
-                                    'closeIndex': position}
+                                'closeIndex': position}
 
-            # Определяет режим работы в случае альтернативной стратегии на которую мы переключаеся в случае выполнения каких-то условий
+            # Определяет режим работы в случае альтернативной стратегии на которую мы переключаеся
+            # в случае выполнения каких-то условий
             if indicatorVR:
                 # Аналогично тому что было раньше
                 if dataFrame.open[position] < preComputed["fatMean"][position]:
@@ -342,31 +360,27 @@ def close_position(position, openDict, dataFrame, localParams, reqCounter, preCo
                     if dataFrame.high[position] > preComputed["fatMean"][position]:
                         return {'typeHolding': 'fatExtraProfit', 'closePrice': preComputed["fatMean"][position],
                                 'closeIndex': position}
-                    # Даем возможность переключить режим стратегии снова на нулевой. Делаем это если данные снова начали показывать
-                    # склонность к meanReversion
-                    # if variance_ratio(logTuple=dataTuple["logTuple"][arrowIndex - params['varianceLookBack']:arrowIndex],
-                    #       retTuple=dataTuple["retTuple"][arrowIndex - params['varianceLookBack']:arrowIndex],params=params):
-                    #     indicatorVR = False
-                    # ANOTHER LOGIC
+                    # Даем возможность переключить режим стратегии снова на нулевой.
+                    # Делаем это если данные снова начали показывать склонность к meanReversion
                 if not reverse_variance_ratio(preComputed=preComputed,
-                                      params=localParams, timeBorderCounter=borderCounter+1, VRstatement=True):
-                        #   Local Trend Following recursion
+                                              params=localParams, timeBorderCounter=borderCounter+1, VRstatement=True):
+                    #   Local Trend Following recursion
                     return close_position(position=position+1, dataFrame=dataFrame, reqCounter=reqCounter+1,
-                                              openDict=openDict, localParams=localParams, preComputed=preComputed,
-                                              borderCounter=borderCounter+1, indicatorVR=False)
-
+                                          openDict=openDict, localParams=localParams, preComputed=preComputed,
+                                          borderCounter=borderCounter+1, indicatorVR=False)
 
         elif openDict['typeOperation'] == 'SELL':
             # Стоп лосс условие
-            if (dataFrame.open[position] < openDict['stopLossBorder']) and (dataFrame.high[position] > openDict['stopLossBorder']):
+            if (dataFrame.open[position] < openDict['stopLossBorder']) and (dataFrame.high[position] >
+                                                                            openDict['stopLossBorder']):
                 return {'typeHolding': 'stopLoss', 'closePrice': openDict['stopLossBorder'],
-                            'closeIndex': position}
+                        'closeIndex': position}
             if dataFrame.open[position] > openDict['stopLossBorder']:
                 return {'typeHolding': 'stopLoss', 'closePrice': dataFrame.open[position],
-                            'closeIndex': position}
+                        'closeIndex': position}
             # Smart mean crossing
-            # Проверяем адекватное расположение между открытием и скользящей малой. Причина этого такая же как для open_position
-            # Читай в чем суть - выше!
+            # Проверяем адекватное расположение между открытием и скользящей малой.
+            # Причина этого такая же как для open_position. Читай в чем суть - выше!
 
             elif (dataFrame.open[position] > preComputed["rollMean"][position]) and (not indicatorVR):
                 # Проверяем что можно закрыть лонг о пересечение с малой скользящей
@@ -374,31 +388,36 @@ def close_position(position, openDict, dataFrame, localParams, reqCounter, preCo
                     # Проверяем можно ли продолжить удержание позиции. Делаем это через VariacneRatio за какой-то период
                     # arrowIndex - params['varianceLookBack'], где varianceLookBack - гиперпараметр стратегии.
                     # Временной лаг Q для VARIANCE_RATIO определяется как время что мы находимся в позиции
-                    # Если VarianceRatio показывает что данные стали TrendFollowing - мы меняем режим стратегии на попытку закерыться
+                    # Если VarianceRatio показывает что данные стали TrendFollowing -
+                    # мы меняем режим стратегии на попытку закрыться
                     # О скользящее среднее за больший период. Так мы получим большую прибыль
                     if preComputed["rollMean"][position] > preComputed["fatMean"][position]:
                         if reverse_variance_ratio(preComputed=preComputed,
-                                          params=localParams, timeBorderCounter=borderCounter+1, VRstatement=False):
+                                                  params=localParams, timeBorderCounter=borderCounter+1,
+                                                  VRstatement=False):
                             #   Local Trend Following recursion
                             return close_position(position=position+1, dataFrame=dataFrame, reqCounter=reqCounter+1,
                                                   openDict=openDict, localParams=localParams, preComputed=preComputed,
                                                   borderCounter=borderCounter+1, indicatorVR=True)
 
                         else:
-                            # Если VR RATIO не показал возможность попытаться закрыться о большую скользяшку, то закрываемся
-                            # о малую
+                            # Если VR RATIO не показал возможность попытаться закрыться о
+                            # большую скользяшку, то закрываемся о малую
                             return {'typeHolding': 'lightCross', 'closePrice': preComputed["rollMean"][position],
-                                    'closeIndex': position }
+                                    'closeIndex': position}
                             pass
 
                     else:
-                        # Может быть так, что скольщяшее среднее за больший период находится выше чем скользящее за малый период
-                        # Если учесть что мы торгуем на тех инструментах что показывают большую склонность к meanReversion
-                        # такая ситуцация говорит нам что нужно как можно скорей сбрасывать позицию.
+                        # Может быть так, что скольщяшее среднее за больший период находится
+                        # выше чем скользящее за малый период
+                        # Если учесть что мы торгуем на тех инструментах что показывают большую
+                        # склонность к meanReversion
+                        # такая ситуация говорит нам что нужно как можно скорей сбрасывать позицию.
                         return {'typeHolding': 'lightCrossEmergent', 'closePrice': preComputed["rollMean"][position],
-                                    'closeIndex': position}
+                                'closeIndex': position}
 
-            # Определяет режим работы в случае альтернативной стратегии на которую мы переключаеся в случае выполнения каких-то условий
+            # Определяет режим работы в случае альтернативной стратегии на которую мы переключаеся в случае
+            # выполнения каких-то условий
             if indicatorVR:
                 # Аналогично тому что было раньше
                 if dataFrame.open[position] > preComputed["fatMean"][position]:
@@ -406,45 +425,41 @@ def close_position(position, openDict, dataFrame, localParams, reqCounter, preCo
                     if dataFrame.low[position] < preComputed["fatMean"][position]:
                         return {'typeHolding': 'fatExtraProfit', 'closePrice': preComputed["fatMean"][position],
                                 'closeIndex': position}
-                    # Даем возможность переключить режим стратегии снова на нулевой. Делаем это если данные снова начали показывать
-                    # склонность к meanReversion
-                    # if variance_ratio(logTuple=dataTuple["logTuple"][arrowIndex - params['varianceLookBack']:arrowIndex],
-                    #       retTuple=dataTuple["retTuple"][arrowIndex - params['varianceLookBack']:arrowIndex],params=params):
-                    #     indicatorVR = False
-                    # ANOTHER LOGIC
+                    # Даем возможность переключить режим стратегии снова на нулевой.
+                    # Делаем это если данные снова начали показывать склонность к meanReversion
                 if not reverse_variance_ratio(preComputed=preComputed,
-                                      params=localParams, timeBorderCounter=borderCounter+1, VRstatement=True):
-                        #   Local Trend Following recursion
+                                              params=localParams, timeBorderCounter=borderCounter+1, VRstatement=True):
+                    #   Local Trend Following recursion
                     return close_position(position=position+1, dataFrame=dataFrame, reqCounter=reqCounter+1,
-                                              openDict=openDict, localParams=localParams, preComputed=preComputed,
-                                              borderCounter=borderCounter+1, indicatorVR=False)
-
+                                          openDict=openDict, localParams=localParams, preComputed=preComputed,
+                                          borderCounter=borderCounter+1, indicatorVR=False)
 
         if not TRIGGER:
             # Trailing StopLoss
             if openDict['typeOperation'] == 'BUY':
                 delta = dataFrame.open[position] - dataFrame.open[position-1]
                 if delta > 0:
-                    openDict['stopLossBorder'] = round(openDict['stopLossBorder'] + delta,3)
+                    openDict['stopLossBorder'] = round(openDict['stopLossBorder'] + delta, 3)
             if openDict['typeOperation'] == 'SELL':
                 delta = dataFrame.open[position] - dataFrame.open[position-1]
                 if delta < 0:
-                    openDict['stopLossBorder'] = round(openDict['stopLossBorder'] - delta,3)
+                    openDict['stopLossBorder'] = round(openDict['stopLossBorder'] - delta, 3)
 
             return close_position(position=position+1, dataFrame=dataFrame, reqCounter=reqCounter+1,
-                                    openDict=openDict, localParams=localParams, preComputed=preComputed,
-                                      borderCounter=borderCounter+1, indicatorVR=indicatorVR)
-    except IndexError:
-        print('Warning in closePosition')
+                                  openDict=openDict, localParams=localParams, preComputed=preComputed,
+                                  borderCounter=borderCounter+1, indicatorVR=indicatorVR)
+    # except TypeError:
+    except:
+        print('Warning in openPosition')
         return 'STOP_IT_PLEASE'
 
 
-def _estimator(dataFrame, gridParams: dict, show=False):
+def _estimator(_DATAFRAME, _gridParams: dict, show=False):
     try:
-        SL = int(dataFrame.shape[0] // 1.5)
-
+        BREAKER = False
+        SL = int(_DATAFRAME.shape[0] // ESTIMATORSIMPLIFIER)
         statistics = list()
-        parameters = gridParams.copy()
+        parameters = _gridParams.copy()
         openShift = int(parameters['scanHalfTime'] * parameters['halfToFat'])
         leftShift = int(parameters['scanHalfTime'] * parameters['halfToFat'])
         # ИЗМЕНЕНИЕ НЕПРОВЕРЕНО: В ПРАВУЮ ГРАНИЦУ ДОБАВЛЕНА + 1
@@ -456,115 +471,104 @@ def _estimator(dataFrame, gridParams: dict, show=False):
         if show:
             tqdm_bar = tqdm(total=SL)
 
-        while POS < SL:
+        while (POS < SL) and (not BREAKER):
             # print(f"===========POS={POS}==============")
-            preComputed = {'logTuple': np.log(dataFrame.open.iloc[POS - leftShift - 1: POS + rightShift].copy())}
+            preComputed = {'logTuple': np.log(_DATAFRAME.open.iloc[POS - leftShift - 1: POS + rightShift].copy())}
             preComputed['retTuple'] = preComputed['logTuple'].diff()[1:]
             preComputed['logTuple'] = preComputed['logTuple'][1:]
 
             openPosition = 1
-            while not isinstance(openPosition, dict):
+            while (not isinstance(openPosition, dict)) and (not BREAKER):
                 # ИЗМЕНЕНИЕ НЕПРОВЕРЕНО: В ПРАВУЮ ГРАНИЦУ ДОБАВЛЕНА + 1
                 # !!!!!!!!!!!!!!!!!
                 openPosition = open_position(position=openShift,
-                                    dataFrame=dataFrame.iloc[POS - leftShift: POS + rightShift + 1],
-                                    params=parameters, reqCounter=0, preComputed=preComputed)
+                                             dataFrame=_DATAFRAME.iloc[POS - leftShift: POS + rightShift + 1],
+                                             params=parameters, reqCounter=0, preComputed=preComputed)
 
                 if (isinstance(openPosition, str)) and (openPosition == 'STOP_IT_PLEASE'):
-                    try:
-                        retDF = pd.DataFrame(statistics)
-                        retDF['profit'] = (retDF["position"] * (retDF["closePrice"] - retDF["openPrice"]) - parameters['slippage'] if (retDF["typeOperation"] == 'BUY').bool else abs(retDF["position"]) * (retDF["openPrice"] - retDF["closePrice"]) - parameters['slippage'])
-                        retDF.index = retDF.openIndex
-                        stepDF = pd.DataFrame(index=pd.RangeIndex(min(retDF.openIndex), max(retDF.openIndex)))
-                        stepPnl = stepDF.merge(retDF, left_index=True, right_index=True, how='outer').profit.replace(np.nan, 0).cumsum()
-                        del stepDF
-                        TPNL = stepPnl.iloc[-1]
-                        if show:
-                            print(TPNL)
-                        PNLDD = TPNL / calculate_max_drawdown(stepPnl)
-                        totalMetric = pd.Series({**parameters, 'PNLDD': PNLDD, 'TotalPNL': TPNL})
-                        return statistics, totalMetric
-                    except KeyError:
-                        return '_estimatorLag', {'None': None}
+                    BREAKER = True
 
-                if not isinstance(openPosition, dict):
+                if not (isinstance(openPosition, dict)) and (not isinstance(openPosition, str)):
                     delta = openPosition - openShift
                     POS += delta
-
-                    preComputed = {'logTuple': np.log(dataFrame.open.iloc[POS - leftShift - 1: POS + rightShift].copy())}
+                    preComputed = {'logTuple': np.log(_DATAFRAME.open.iloc[POS - leftShift - 1:
+                                                                           POS + rightShift].copy())}
                     preComputed['retTuple'] = preComputed['logTuple'].diff()[1:]
                     preComputed['logTuple'] = preComputed['logTuple'][1:]
+                    if POS > SL:
+                        BREAKER = True
 
+            if not BREAKER:
+                openDict = openPosition['openDict']
+                openDict['openIndex'] = openDict['openIndex'] - openShift + POS
+                POS = openDict['openIndex'] + 1
 
-            openDict = openPosition['openDict']
-            openDict['openIndex'] = openDict['openIndex'] - openShift + POS
-            POS = openDict['openIndex'] + 1
+                localParameters = openPosition['params']
 
-            localParameters = openPosition['params']
+                closeShift = int(max(localParameters['varianceLookBack'], localParameters['fatRollingMean'])) + 1
+                closeLeft = int(max(localParameters['varianceLookBack'], localParameters['fatRollingMean'])) + 1
+                closeRight = int(min(RecursionBorder, localParameters['timeBarrier'])) + 1
 
-            closeShift = int(max(localParameters['varianceLookBack'], localParameters['fatRollingMean'])) + 1
-            closeLeft = int(max(localParameters['varianceLookBack'], localParameters['fatRollingMean'])) + 1
-            closeRight = int(min(RecursionBorder, localParameters['timeBarrier'])) + 1
+                preComputedClose = cook_data(_DATAFRAME.iloc[POS - 1 - closeLeft: POS + closeRight].copy(),
+                                             params=localParameters).copy()
 
-            preComputedClose = cook_data(dataFrame.iloc[POS - 1 - closeLeft: POS + closeRight].copy(),
-                                         params=localParameters).copy()
+                indicatorVR = False
+                borderCounter = 0
 
-            indicatorVR = False
-            borderCounter = 0
+                closePosition = 1
 
-            closePosition = 1
+                # print(openDict)
 
-            # print(openDict)
-            while not isinstance(closePosition, dict):
-                closePosition = close_position(position=closeShift, openDict=openDict,
-                                    dataFrame=dataFrame.iloc[POS - leftShift: POS + closeRight].copy(),
-                                    localParams=localParameters, reqCounter=0,
-                                   preComputed=preComputedClose, borderCounter=borderCounter,
-                                               indicatorVR=indicatorVR)
+                while (not isinstance(closePosition, dict)) and (not BREAKER):
+                    closePosition = close_position(position=closeShift, openDict=openDict,
+                                                   dataFrame=_DATAFRAME.iloc[POS - leftShift: POS + closeRight].copy(),
+                                                   localParams=localParameters, reqCounter=0,
+                                                   preComputed=preComputedClose, borderCounter=borderCounter,
+                                                   indicatorVR=indicatorVR)
 
-                if (isinstance(closePosition, str)) and (closePosition == 'STOP_IT_PLEASE'):
-                    try:
-                        retDF = pd.DataFrame(statistics)
-                        retDF['profit'] = (retDF["position"] * (retDF["closePrice"] - retDF["openPrice"]) - parameters['slippage'] if (retDF["typeOperation"] == 'BUY').bool else abs(retDF["position"]) * (retDF["openPrice"] - retDF["closePrice"]) - parameters['slippage'])
-                        retDF.index = retDF.openIndex
-                        stepDF = pd.DataFrame(index=pd.RangeIndex(min(retDF.openIndex), max(retDF.openIndex)))
-                        stepPnl = stepDF.merge(retDF, left_index=True, right_index=True, how='outer').profit.replace(np.nan, 0).cumsum()
-                        del stepDF
-                        TPNL = stepPnl.iloc[-1]
-                        if show:
-                            print(TPNL)
-                        PNLDD = TPNL / calculate_max_drawdown(stepPnl)
-                        totalMetric = pd.Series({**parameters, 'PNLDD': PNLDD, 'TotalPNL': TPNL})
-                        return statistics, totalMetric
-                    except KeyError:
-                        return '_estimatorLag', {'None': None}
+                    if (isinstance(closePosition, str)) and (closePosition == 'STOP_IT_PLEASE'):
+                        BREAKER = True
 
-                if not isinstance(closePosition, dict):
-                    delta = closePosition[0] - closeShift
-                    POS += delta
+                    if (not isinstance(closePosition, dict)) and (not isinstance(closePosition, str)):
+                        delta = closePosition[0] - closeShift
+                        POS += delta
 
-                    preComputedClose = cook_data(dataFrame.iloc[POS - 1 - closeLeft: POS + closeRight].copy(),
-                                         params=localParameters).copy()
-                    localParameters = closePosition[1]
-                    indicatorVR = closePosition[3]
-                    borderCounter = closePosition[2]
-                    openDict = closePosition[4]
+                        preComputedClose = cook_data(_DATAFRAME.iloc[POS - 1 - closeLeft: POS + closeRight].copy(),
+                                                     params=localParameters).copy()
+                        localParameters = closePosition[1]
+                        indicatorVR = closePosition[3]
+                        borderCounter = closePosition[2]
+                        openDict = closePosition[4]
+                        if POS > SL:
+                            BREAKER = True
 
-            closeDict = closePosition
-            # print(closeDict)
-            closeDict['closeIndex'] = closeDict['closeIndex'] - closeShift + POS
-            POS = closeDict['closeIndex'] + 1
+                if not BREAKER:
+                    closeDict = closePosition
+                    # print(closeDict)
+                    closeDict['closeIndex'] = closeDict['closeIndex'] - closeShift + POS
+                    POS = closeDict['closeIndex'] + 1
 
-            if closeDict['typeHolding'] == 'stopLoss':
-                POS += int(localParameters['restAfterLoss'])
+                    if closeDict['typeHolding'] == 'stopLoss':
+                        POS += int(localParameters['restAfterLoss'])
 
-            if show:
-                tqdm_bar.update(POS - tqdm_bar.last_print_n)
+                    if show:
+                        tqdm_bar.update(POS - tqdm_bar.last_print_n)
 
-            statistics.append({**openDict, **closeDict})
+                    statistics.append({**openDict, **closeDict})
 
         retDF = pd.DataFrame(statistics)
-        retDF['profit'] = (retDF["position"] * (retDF["closePrice"] - retDF["openPrice"]) - parameters['slippage'] if (retDF["typeOperation"] == 'BUY').bool else abs(retDF["position"]) * (retDF["openPrice"] - retDF["closePrice"]) - parameters['slippage'])
+
+
+        if retDF.empty:
+            statistics = pd.DataFrame()
+            totalMetric = pd.Series({**_gridParams.copy(), 'PNLDD': -1, 'TotalPNL': -100_000})
+            return statistics, totalMetric
+
+        retDF['profit'] = (retDF["position"] * (retDF["closePrice"] -
+                                                retDF["openPrice"]) - parameters['slippage']
+                           if (retDF["typeOperation"] == 'BUY').bool
+                           else abs(retDF["position"]) * (retDF["openPrice"]
+                                                          - retDF["closePrice"]) - parameters['slippage'])
         retDF.index = retDF.openIndex
         stepDF = pd.DataFrame(index=pd.RangeIndex(min(retDF.openIndex), max(retDF.openIndex)))
         stepPnl = stepDF.merge(retDF, left_index=True, right_index=True, how='outer').profit.replace(np.nan, 0).cumsum()
@@ -572,24 +576,26 @@ def _estimator(dataFrame, gridParams: dict, show=False):
         TPNL = stepPnl.iloc[-1]
         if show:
             print(TPNL)
-        PNLDD = TPNL / calculate_max_drawdown(stepPnl)
+        try:
+            PNLDD = TPNL / calculate_max_drawdown(stepPnl)
+        except ValueError:
+            PNLDD = -1
         totalMetric = pd.Series({**parameters, 'PNLDD': PNLDD, 'TotalPNL': TPNL})
         return statistics, totalMetric
 
-    except ValueError:
+    except TypeError:
         statistics = pd.DataFrame()
-        totalMetric = pd.Series({**gridParams.copy(), 'PNLDD': -1, 'TotalPNL': -100_000})
+        totalMetric = pd.Series({**_gridParams.copy(), 'PNLDD': -1, 'TotalPNL': -100_000})
         return statistics, totalMetric
 
 
-def strategy_real_time_optimize(dataFrame, parameters, show=True, update=False):
-    JOI_PARAMETER = 2
-    # SL = int(dataFrame.shape[0] // 4)
-    SL = int(dataFrame.shape[0] // 6)
+def strategy_real_time_optimize(realTimeData, parameters, show=True, update=False):
+    JOI_PARAMETER = 20
+    SL = int(realTimeData.shape[0] // OPTIMIZESIMPLIFIER)
     paramsEvolution = list()
     RealTimeOptimizeTrades = list()
 
-    dataFrame = dataFrame.copy()
+    realTimeData = realTimeData.copy()
     _UPDATE_TIME = pd.Timedelta('1w')
     _TRADE_TIME = pd.Timedelta('2w')
     _UPDATE_TIME //= '1T'
@@ -602,56 +608,69 @@ def strategy_real_time_optimize(dataFrame, parameters, show=True, update=False):
 
     optimalParams = parameters.copy()
     while POSITION < SL:
-        print(POSITION)
         # print(optimalParams)
         # print('--' * 40)
         paramsEvolution.append([POSITION, optimalParams])
         optimizing_grid = {
         # Оптимизировать !!!
-        'yThreshold': np.unique(np.linspace(optimalParams["yThreshold"] * 100 * 0.85, optimalParams["yThreshold"] * 100 * 1.15, num=3)),
+        'yThreshold': np.unique(np.linspace(optimalParams["yThreshold"] * 100 * 0.85,
+                                            optimalParams["yThreshold"] * 100 * 1.15, num=3)),
         # Оптимизировать !
         # 'varianceRatioFilter': np.linspace(parameters["varianceRatioFilter"] * 0.9, parameters["varianceRatioFilter"] * 1.1, num=3),
         'varianceRatioFilter': np.unique([optimalParams["varianceRatioFilter"]]),
         # 'reverseVarianceRatioFilter': np.linspace(parameters["reverseVarianceRatioFilter"] * 0.9, parameters["reverseVarianceRatioFilter"] * 1.1, num=3),
         'reverseVarianceRatioFilter': np.unique([optimalParams["reverseVarianceRatioFilter"]]),
         # Оптимизировать !!
-        'restAfterLoss': np.unique([int(x) for x in np.linspace(optimalParams["restAfterLoss"] * 0.9, optimalParams["restAfterLoss"] * 1.1, num=3)]),
+        'restAfterLoss': np.unique([int(x) for x in np.linspace(optimalParams["restAfterLoss"] * 0.9,
+                                                                optimalParams["restAfterLoss"] * 1.1, num=3)]),
         # Оптимизировать !
-        'restAfterFatProfit' : np.unique([z if z != 0 else 1 for z in [int(x) for x in np.linspace(optimalParams["restAfterFatProfit"] * 0.9, optimalParams["restAfterFatProfit"] * 1.1, num=1)]]),
+        # 'restAfterFatProfit' : np.unique([z if z != 0 else 1 for z in [int(x) for x in np.linspace(optimalParams["restAfterFatProfit"] * 0.9,
+        #                                                                                            optimalParams["restAfterFatProfit"] * 1.1, num=1)]]),
+        'restAfterFatProfit' : [optimalParams['restAfterFatProfit']],
         # Оптимизировать !!
-        'stopLossStdMultiplier': np.unique([int(x) for x in np.linspace(optimalParams["stopLossStdMultiplier"] * 100 * 0.9, optimalParams["stopLossStdMultiplier"] * 100 * 1.1, num=3)]),
+        'stopLossStdMultiplier': np.unique([int(x) for x in np.linspace(optimalParams["stopLossStdMultiplier"] * 100 * 0.9,
+                                                                        optimalParams["stopLossStdMultiplier"] * 100 * 1.1, num=3)]),
         # Оптимизировать !
-        'takeProfitStdMultiplier': np.unique([z if z != 0 else 1 for z in [int(x) for x in np.linspace(optimalParams["takeProfitStdMultiplier"] * 100 * 0.9, optimalParams["takeProfitStdMultiplier"] * 100 * 1.1, num=1)]]),
+        # 'takeProfitStdMultiplier': np.unique([z if z != 0 else 1 for z in [int(x) for x in np.linspace(optimalParams["takeProfitStdMultiplier"] * 100 * 0.9,
+        #                                                                                                optimalParams["takeProfitStdMultiplier"] * 100 * 1.1, num=1)]]),
+        'takeProfitStdMultiplier': [optimalParams["takeProfitStdMultiplier"] * 100],
         # Оптимизировать !!
-        'varianceRatioCarreteParameter': np.unique([z if z !=0 else 1 for z in [int(x) for x in np.linspace(optimalParams["varianceRatioCarreteParameter"] * 0.8, optimalParams["varianceRatioCarreteParameter"] * 1.2, num=3)]]),
+        'varianceRatioCarreteParameter': np.unique([z if z !=0 else 1 for z in [int(x) for x in np.linspace(optimalParams["varianceRatioCarreteParameter"] * 0.8,
+                                                                                                            optimalParams["varianceRatioCarreteParameter"] * 1.2, num=3)]]),
         # Оптимизировать !!!
-        'scanHalfTime': np.unique([z if z != 0 else 1 for z in [int(x) for x in np.linspace(optimalParams["scanHalfTime"] * 0.8, optimalParams["scanHalfTime"] * 1.2, num=3)]]),
+        'scanHalfTime': np.unique([z if z != 0 else 1 for z in [int(x) for x in np.linspace(optimalParams["scanHalfTime"] * 0.8,
+                                                                                            optimalParams["scanHalfTime"] * 1.2, num=3)]]),
         # Оптимизировать 0!
-        'halfToFat': np.unique([z if z != 0 else 1 for z in [int(x) for x in np.linspace(optimalParams["halfToFat"] * 0.9, optimalParams["halfToFat"] * 1.1, num=3)]]),
+        'halfToFat': np.unique([z if z != 0 else 1 for z in [int(x) for x in np.linspace(optimalParams["halfToFat"] * 0.9,
+                                                                                         optimalParams["halfToFat"] * 1.1, num=3)]]),
         # Оптимизировать 0!
-        'halfToLight': np.unique([z if z !=0 else 1 for z in [int(x) for x in np.linspace(optimalParams["halfToLight"] * 0.9, optimalParams["halfToLight"] * 1.1, num=3)]]),
+        'halfToLight': np.unique([z if z !=0 else 1 for z in [int(x) for x in np.linspace(optimalParams["halfToLight"] * 0.9,
+                                                                                          optimalParams["halfToLight"] * 1.1, num=3)]]),
         # Оптимизировать 0!
-        'halfToTime': np.unique([z if z != 0 else 1 for z in [int(x) for x in np.linspace(optimalParams["halfToTime"] * 0.9, optimalParams["halfToTime"] * 1.1, num=3)]]),
+        'halfToTime': np.unique([z if z != 0 else 1 for z in [int(x) for x in np.linspace(optimalParams["halfToTime"] * 0.9,
+                                                                                          optimalParams["halfToTime"] * 1.1, num=3)]]),
         }
         params_net = pd.DataFrame(ParameterGrid(optimizing_grid)).sample(frac=1, random_state=9).reset_index(drop=True)
         optimizing_step = list()
-        statistics, totalMetric = _estimator(dataFrame.iloc[POSITION - _UPDATE_TIME: POSITION].copy(), gridParams=parameters, show=False)
+        statistics, totalMetric = _estimator(realTimeData.iloc[POSITION - _UPDATE_TIME: POSITION].copy(), _gridParams=parameters, show=False)
         optimizing_step.append(totalMetric)
 
-        for _arrowParam in range(JOI_PARAMETER):
+
+        for _arrowParam in range(0, JOI_PARAMETER):
             print(f"{_arrowParam} of {JOI_PARAMETER - 1}")
-            parameters = create_strategy_config(params_net.iloc[_arrowParam])
-            statistics, totalMetric = _estimator(dataFrame.iloc[POSITION - _UPDATE_TIME: POSITION].copy(), gridParams=parameters, show=False)
+            parameters = create_strategy_config(params_net.iloc[_arrowParam]).copy()
+            statistics, totalMetric = _estimator(realTimeData.iloc[POSITION - _UPDATE_TIME: POSITION].copy(), _gridParams=parameters, show=False)
+            # print(totalMetric)
             optimizing_step.append(totalMetric)
 
         # print(pd.DataFrame(optimizing_step))
         # print('=====' *  10)
         try:
             optimalParams = pd.DataFrame(optimizing_step).sort_values(by='PNLDD', ascending=False).iloc[0]
-        except AttributeError:
+        except TypeError:
             print(optimizing_step)
             print('Actual Position:', POSITION)
-            print('Total dotes:', dataFrame.shape, 'SL=', SL)
+            print('Total dotes:', realTimeData.shape, 'SL=', SL)
 
         optimalParams = {
         # Оптимизировать !!!
@@ -683,12 +702,11 @@ def strategy_real_time_optimize(dataFrame, parameters, show=True, update=False):
         # print(pd.Series(optimalParams))
         # print('----' * 10)
         optimalParams = create_strategy_config(optimalParams).copy()
-        statistics, totalMetric = _estimator(dataFrame.iloc[POSITION: POSITION + _TRADE_TIME].copy(), gridParams=optimalParams, show=False)
+        statistics, totalMetric = _estimator(realTimeData.iloc[POSITION: POSITION + _TRADE_TIME].copy(), _gridParams=optimalParams, show=False)
         if isinstance(statistics, str):
             print('estimatoerLag')
             POSITION += 1_000
             continue
-
         if not pd.DataFrame(statistics).empty:
             statistics = pd.DataFrame(statistics)
             statistics['openIndex'] = statistics['openIndex'] + POSITION
@@ -697,7 +715,7 @@ def strategy_real_time_optimize(dataFrame, parameters, show=True, update=False):
             RealTimeOptimizeTrades.append(statistics)
         else:
             print('emptyStat')
-            POSITION += 1000
+            POSITION += int(_TRADE_TIME // ESTIMATORSIMPLIFIER)
             continue
         if show:
             tqdm_bar.update(POSITION - tqdm_bar.last_print_n)
@@ -711,17 +729,24 @@ def strategy_real_time_optimize(dataFrame, parameters, show=True, update=False):
         initDF = initDF.append(tr, ignore_index=True)
 
     ret = pd.DataFrame(initDF)
-    ret['profit'] = (ret["position"] * (ret["closePrice"] - ret["openPrice"]) - paramsEvolution[0][1]['slippage'] if (ret["typeOperation"] == 'BUY').bool else abs(ret["position"]) * (ret["openPrice"] - ret["closePrice"]) - paramsEvolution[0][1]['slippage'])
+    ret['profit'] = (ret["position"] * (ret["closePrice"] -
+                                        ret["openPrice"]) - paramsEvolution[0][1]['slippage']
+                     if (ret["typeOperation"] == 'BUY').bool
+                     else abs(ret["position"]) * (ret["openPrice"] -
+                                                  ret["closePrice"]) - paramsEvolution[0][1]['slippage'])
     ret.index = ret.openIndex
     stepDF = pd.DataFrame(index=pd.RangeIndex(min(ret.openIndex), max(ret.openIndex)))
     stepPnl = stepDF.merge(ret, left_index=True, right_index=True, how='outer').profit.replace(np.nan, 0).cumsum()
     del stepDF
     TPNL = stepPnl.iloc[-1]
-    PNLDD = TPNL / calculate_max_drawdown(stepPnl)
+    try:
+        PNLDD = TPNL / calculate_max_drawdown(stepPnl)
+    except ValueError:
+        PNLDD = -1
     if show:
         print('TOTAL PNL = ', TPNL)
         print('DD DIV TOTAL PNL = ', PNLDD)
-        plt.figure(figsize=(12,5))
+        plt.figure(figsize=(12, 5))
         plt.plot(stepPnl)
         plt.title('trade PNL')
         plt.show()
@@ -732,63 +757,65 @@ def strategy_real_time_optimize(dataFrame, parameters, show=True, update=False):
     return totalResult, RealTimeOptimizeTrades, paramsEvolution
 
 
-def _get_the_best_strategy(dataFrame, grid, numberOfDotes = 20):
+def _get_the_best_strategy(mainOptimizerData, initConditions, numberOfDotes=20, saveInfo=True):
     if not os.access(f'backTEST', os.F_OK):
         os.mkdir(f'backTEST')
 
     strategyRESULTcollector = list()
     parametersEvolution = list()
-    if numberOfDotes < grid.shape[0]:
+    if numberOfDotes < initConditions.shape[0]:
         BORDER = numberOfDotes
     else:
-        BORDER = grid.shape[0]
+        BORDER = initConditions.shape[0]
 
-    for NUM in tqdm(range(12, BORDER)):
-        parmNUM = create_strategy_config(grid.iloc[NUM].copy()).copy()
-        totalRes, trades, paramsEvo = strategy_real_time_optimize(dataFrame.iloc[:400_000].copy(), parameters=parmNUM.copy(), show=False, update=True)
+    for NUM in tqdm(range(0, BORDER)):
+        parmNUM = create_strategy_config(initConditions.iloc[NUM].copy()).copy()
+        totalRes, trades, paramsEvo = strategy_real_time_optimize(realTimeData=mainOptimizerData.iloc[:400_000].copy(), parameters=parmNUM.copy(), show=False, update=True)
         paramsEvo = [_[1] for _ in paramsEvo]
         paramsEvoSeries = pd.DataFrame(paramsEvo)
         if not os.access(f'backTEST{systemDivide}evolution_{NUM}', os.F_OK):
             os.mkdir(f'backTEST{systemDivide}evolution_{NUM}')
-        paramsEvoSeries.to_csv(f'backTEST{systemDivide}evolution_{NUM}{systemDivide}evolution.csv')
-        pd.Series(totalRes).to_csv(f'backTEST{systemDivide}evolution_{NUM}{systemDivide}result.csv')
+        if saveInfo:
+            paramsEvoSeries.to_csv(f'backTEST{systemDivide}evolution_{NUM}{systemDivide}evolution.csv')
+            pd.Series(totalRes).to_csv(f'backTEST{systemDivide}evolution_{NUM}{systemDivide}result.csv')
         parametersEvolution.append(paramsEvo)
         strategyRESULTcollector.append(totalRes)
-    pd.DataFrame(strategyRESULTcollector).to_csv(f'backTEST{systemDivide}results.csv')
+    if saveInfo:
+        pd.DataFrame(strategyRESULTcollector).to_csv(f'backTEST{systemDivide}results.csv')
     return strategyRESULTcollector, parametersEvolution
-
 
 RecursionBorder = 1000
 grid_params = {
     # Оптимизировать !!!
-    'yThreshold': np.linspace(150, 600, 4),
+    'yThreshold': [150],
     # Оптимизировать !
     'varianceRatioFilter': [1.0],
     'reverseVarianceRatioFilter': [1.0],
     # Оптимизировать !!
-    'restAfterLoss': [100],
+    'restAfterLoss': [324],
     # Оптимизировать !
-    'restAfterFatProfit': [0],
+    'restAfterFatProfit': [1],
     # Оптимизировать !!
-    'stopLossStdMultiplier': [100, 300, 1000, 2000, 4000, 8000, 12000],
+    'stopLossStdMultiplier': [108_00],
     # Оптимизировать !
-    'takeProfitStdMultiplier': [5000],
+    'takeProfitStdMultiplier': [4050],
     # Оптимизировать !!
-    'varianceRatioCarreteParameter': [20],
+    'varianceRatioCarreteParameter': [18],
     # Оптимизировать !!!
-    'scanHalfTime': np.linspace(400, 2000, 3),
+    'scanHalfTime': [500],
     # Оптимизировать 0!
     'halfToFat': [2],
     # Оптимизировать 0!
     'halfToLight': [1],
     # Оптимизировать 0!
-    'halfToTime': [3],
+    'halfToTime': [2],
     }
 
-grid_params = ParameterGrid(grid_params)
-grid_params = pd.DataFrame(grid_params).sample(frac=1, random_state=9).reset_index(drop=True)
-print(f"Init params shape = {grid_params.shape[0]}")
-RES, EVOLUTION = _get_the_best_strategy(dataFrame=inpData.copy(), grid=grid_params, numberOfDotes=84)
-
-
-
+if __name__ == '__main__':
+    ESTIMATORSIMPLIFIER = 1.5
+    OPTIMIZESIMPLIFIER = 6
+    grid_params = ParameterGrid(grid_params)
+    grid_params = pd.DataFrame(grid_params).sample(frac=1, random_state=9).reset_index(drop=True)
+    print(f"Init params shape = {grid_params.shape[0]}")
+    RES, EVOLUTION = _get_the_best_strategy(mainOptimizerData=inpData.copy(), initConditions=grid_params,
+                                            numberOfDotes=12, saveInfo=True)
