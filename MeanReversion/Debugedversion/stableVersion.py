@@ -109,6 +109,14 @@ def cook_data(df: pd.DataFrame, params) -> pd.DataFrame:
     return df.iloc[1:]
 
 
+# [1, 2, 3, 4, 5, 6]
+# [6, 1, 2, 3, 4, 5]
+#
+# DELTA
+# [-, 1, 1, 1, 1, 1] = f(x)
+# x = [6, 1, 2, 3, 4, 5]
+# f(x) = ax + b
+# a = ?
 def get_half_time(openTuple: pd.Series) -> float:
     """
     Функция отдающая период полураспада
@@ -275,6 +283,7 @@ def open_position(position, dataFrame, params, reqCounter, preComputed):
             openDict['stopLossBorder'] = round(low_band - params['stopLossStdMultiplier'] * bands_std, 3)
             openDict['takeProfitBorder'] = round(low_band + params['takeProfitStdMultiplier'] * bands_std, 3)
             TRIGGER = True
+
             return {'openDict': openDict, 'params': localParams}
 
     elif (dataFrame.open[position] < high_band) and (dataFrame.high[position] > high_band):
@@ -291,6 +300,7 @@ def open_position(position, dataFrame, params, reqCounter, preComputed):
             openDict['stopLossBorder'] = round(high_band + params['stopLossStdMultiplier'] * bands_std, 3)
             openDict['takeProfitBorder'] = round(high_band - params['takeProfitStdMultiplier'] * bands_std, 3)
             TRIGGER = True
+
             return {'openDict': openDict, 'params': localParams}
 
     # В случае, если сделку открыть не получилось, переходим к следующей точке.
@@ -467,6 +477,7 @@ def close_position(position, openDict, dataFrame, localParams, reqCounter, preCo
                               borderCounter=borderCounter + 1, indicatorVR=indicatorVR)
 
 
+
 def _collectTrades(initPOS, SL, coll_DATAFRAME, leftShift, rightShift, openShift, Collparameters):
     statistics = list()
     POS = initPOS
@@ -499,6 +510,9 @@ def _collectTrades(initPOS, SL, coll_DATAFRAME, leftShift, rightShift, openShift
 
 
         openDict = openPosition['openDict']
+        ['position', 'openPrice']
+        order = tie_account_to_order(AccountKey, MarketOrderFxSpot(Uic=19, Amount=openDict['position']))
+
         openDict['openIndex'] = openDict['openIndex'] - openShift + POS
         POS = openDict['openIndex'] + 1
 
@@ -507,7 +521,7 @@ def _collectTrades(initPOS, SL, coll_DATAFRAME, leftShift, rightShift, openShift
         closeLeft = int(max(localParameters['varianceLookBack'], localParameters['fatRollingMean'])) + 1
         closeRight = int(min(RecursionBorder, localParameters['timeBarrier'])) + 1
 
-        preComputedClose = cook_data(coll_DATAFRAME.iloc[POS - 2 - closeLeft: POS + closeRight].copy(),
+        preComputedClose = cook_data(coll_DATAFRAME.iloc[POS - 1 - closeLeft: POS + closeRight].copy(),
                                      params=localParameters).copy()
 
         indicatorVR = False
@@ -536,10 +550,15 @@ def _collectTrades(initPOS, SL, coll_DATAFRAME, leftShift, rightShift, openShift
                 borderCounter = closePosition[2]
                 openDict = closePosition[4]
 
+
         closeDict = closePosition
+        ['price', 'typeClosing']
         # print(closeDict)
         closeDict['closeIndex'] = closeDict['closeIndex'] - closeShift + POS
         POS = closeDict['closeIndex'] + 1
+
+        order = tie_account_to_order(AccountKey, StopOrderFxSpot(Uic=19, Amount=openDict['position'],
+                                                                 OrderPrice=closeDict['closePrice']))
 
         if closeDict['typeHolding'] == 'stopLoss':
             POS += int(localParameters['restAfterLoss'])
@@ -598,7 +617,7 @@ def _estimator(_DATAFRAME, _gridParams: dict):
 
 
 def strategy_real_time_optimize(realTimeData, parameters, savePath: str, show=True, update=False):
-    JOI_PARAMETER = 1
+    JOI_PARAMETER = 15
     SL = int(realTimeData.shape[0] // OPTIMIZESIMPLIFIER)
     paramsEvolution = list()
     RealTimeOptimizeTrades = list()
@@ -702,7 +721,7 @@ def strategy_real_time_optimize(realTimeData, parameters, savePath: str, show=Tr
         if update:
             optimalParams.to_csv(f'{savePath}{systemDivide}{POSITION - _UPDATE_TIME}_{POSITION}{systemDivide}all_joi.csv')
 
-        optimalParams = pd.DataFrame(optimizing_step).sort_values(by='PNLDD', ascending=False).iloc[0]
+        optimalParams = pd.DataFrame(optimizing_step).sort_values(by='TotalPNL', ascending=False).iloc[0]
 
         optimalParams = {
         # Оптимизировать !!!
@@ -751,8 +770,12 @@ def strategy_real_time_optimize(realTimeData, parameters, savePath: str, show=Tr
         statistics = pd.DataFrame(statistics)
         statistics['openIndex'] = statistics['openIndex'] + POSITION - POSITIONSHIFTER
         statistics['closeIndex'] = statistics['closeIndex'] + POSITION - POSITIONSHIFTER
+        if update:
+            statistics.groupby(by='typeHolding').describe().to_csv(
+                f'{savePath}{systemDivide}{POSITION - _UPDATE_TIME}_{POSITION}{systemDivide}tradingStat.csv')
         POSITION = statistics['closeIndex'].iloc[-1]
-        print("Position after trade period:", POSITION)
+        if DEBUGMODE:
+            print("Position after trade period:", POSITION)
         RealTimeOptimizeTrades.append(statistics)
 
     paramsEvolution[0][1]['yThreshold'] *= 100
