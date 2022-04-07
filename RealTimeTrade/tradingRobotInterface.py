@@ -36,7 +36,6 @@ class ImRobot:
 
         self._PastPricesArray = list()
 
-
     def _collect_past_prices(self):
         # We need at least self._initStrategyParams.scanHalfTime
         self._PastPricesArray = self.connector.collect_past_multiple_prices(int(self._initStrategyParams['scanHalfTime']))
