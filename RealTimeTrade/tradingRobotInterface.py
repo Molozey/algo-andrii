@@ -1,5 +1,6 @@
 import pandas as pd
 import time
+from utils import get_half_time, reverse_variance_ratio, variance_ratio, create_strategy_config
 
 
 class ImRobot:
@@ -15,7 +16,8 @@ class ImRobot:
         self.time_interval = float(config.iloc[list(config.index).index('updateTime: '), 0])
         del config
 
-        self.strategyParams = pd.read_csv(strategyParameters_file_way, header=0, sep=',')
+        self._initStrategyParams = pd.read_csv(strategyParameters_file_way, header=0, sep=',')
+        self.strategyParams = create_strategy_config(self._initStrategyParams)
 
         self.connector = None
         self.statCollector = None
@@ -27,8 +29,8 @@ class ImRobot:
         self._PastPricesArray = list()
 
     def _collect_past_prices(self):
-        # We need at least self.strategyParams.scanHalfTime
-        self._PastPricesArray = self.connector.collect_past_multiple_prices(self.strategyParams.scanHalfTime)
+        # We need at least self._initStrategyParams.scanHalfTime
+        self._PastPricesArray = self.connector.collect_past_multiple_prices(self._initStrategyParams.scanHalfTime)
         pass
 
     def _collect_new_price(self):
@@ -46,6 +48,9 @@ class ImRobot:
         self.connector = connector
 
     def _open_trade_ability(self):
+        half_time = int(get_half_time(self._PastPricesArray[-int(self.strategyParams.scanHalfTime):]))
+        if (half_time > self.strategyParams['scanHalfTime']) or (half_time < 0):
+            return False
         pass
 
     def _close_trade_ability(self):
@@ -88,4 +93,5 @@ class ImRobot:
         while True:
             self._trading_loop()
 
-print(pd.read_csv('strategyParameters.txt'))
+a = [2,3,4,5,5,6,6,6,6,6,6,6,10,6]
+print(a[-5:])
