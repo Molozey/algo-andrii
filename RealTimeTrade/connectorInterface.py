@@ -74,6 +74,27 @@ class AbstractOrderInterface:
                 print(f'{ticket}: {error}')
             time.sleep(1)
             
+    def get_asset_data_hist(symbol, interval=None, from_='1000-01-01', to=str(date.today()), api_token='5f75d2d79bbbb4.84214003'):
+        # idditioal information: https://eodhistoricaldata.com/financial-apis/list-supported-forex-currencies/
+        # for indexes use {symbol}{.FOREX}
+        # for indexes use {symbol}{.INDX}
+        if interval == None:
+            url = f'https://eodhistoricaldata.com/api/eod/{symbol}?api_token={api_token}&fmt=json&from={from_}&to={to}'
+        else:
+            # change type of 'from_' & 'to' to calculate amount days between it
+            from_ = time.mktime(datetime.datetime.strptime(from_, "%Y-%m-%d").timetuple())
+            to = time.mktime(datetime.datetime.strptime(to, "%Y-%m-%d").timetuple())
+            days_in_term = int((to - from_)/60/60/24)
+            if (interval == '1h') & (days_in_term <= 7200) | (interval == '5m') & (days_in_term <= 600) | (interval == '1m') & (days_in_term <= 120):
+                url = f'https://eodhistoricaldata.com/api/intraday/{symbol}?api_token={api_token}&fmt=json&interval={interval}&from={from_}&to={to}'
+            else:
+                return "You must use intervals '1h'/'5m'/'1m' and all of them can contain maximum 7200/600/120 days accordingly."
+        response = urllib.request.urlopen(url)
+        data = json.loads(response.read())
+        if bool(data) == False:
+            return "The data with the parameters does not exist on the 'eodhistoricaldata.com' server."
+        return data
+
     @abstractmethod
     def validate_open_order(self):
         pass
