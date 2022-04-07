@@ -26,6 +26,8 @@ class ImRobot:
         self.tradingTimer = None
 
         self._inPosition = False
+        self._positionDetails = None
+        self.waitingToFatMean = False
 
         self._PastPricesArray = list()
 
@@ -116,7 +118,37 @@ class ImRobot:
         return False
 
     def _close_trade_ability(self):
-        pass
+
+        if (self.tradingTimer.elapsed() // 60) > self.strategyParams['timeBarrier']:
+            return {'typeHolding': 'endPeriod', 'closePrice': None,
+                    'closeIndex': None}
+
+        if self._positionDetails['typeOperation'] == 'BUY':
+            if self._PastPricesArray[-1] < self._positionDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArray[-1]}
+            # Block with Trailing StopLoss. This realization is not good. Need to change
+            delta = self._PastPricesArray[-1] - self._PastPricesArray[-2]
+            if delta > 0:
+                self._positionDetails['stopLossBorder'] = round(self._positionDetails['stopLossBorder'] + delta, 3)
+
+            if self._PastPricesArray[-1] < self._positionDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArray[-1]}
+
+            if not self.waitingToFatMean:
+                workingArray = self._PastPricesArray[-int(self.strategyParams['rollingMean']):]
+                bandMean = np.mean(workingArray)
+
+                if self._PastPricesArray[-1] > bandMean:
+                    _log = self._PastPricesArray[-(int(max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean']))+1):]
+                    compute = {
+                        "retOpenPrice": np.diff(_log),
+                        "logOpenPrice": _log[1:]
+                    }
+                    assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
+
+                    if reverse_variance_ratio(preComputed=compute, params=self.strategyParams, timeBorderCounter=self.tradingTimer.elapsed() // 60, VRstatement=self.waitingToFatMean):
+
+
 
     def _trading_loop(self):
         # Waiting until we can open a trade
@@ -129,6 +161,9 @@ class ImRobot:
                 self.tradingTimer.start()
             time.sleep(self.time_interval)
 
+        self._positionDetails = openAbility
+
+        self.waitingToFatMean = False
         while self._inPosition:
             self._collect_new_price()
             closeAbility = self._close_trade_ability()
