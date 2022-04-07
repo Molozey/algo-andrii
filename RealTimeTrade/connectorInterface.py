@@ -13,11 +13,14 @@ class AbstractOrderInterface:
     def place_open_order(self):
         pass
 
+    @abstractmethod
     def validate_open_order(self):
         pass
 
+    @abstractmethod
     def place_close_order(self):
         pass
 
+    @abstractmethod
     def validate_close_order(self):
         pass
