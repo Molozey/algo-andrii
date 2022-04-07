@@ -24,3 +24,7 @@ class AbstractOrderInterface:
     @abstractmethod
     def validate_close_order(self):
         pass
+
+    @abstractmethod
+    def collect_past_multiple_prices(self, NumberOfPrices):
+        pass
