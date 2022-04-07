@@ -21,13 +21,13 @@ def get_half_time(openTuple: pd.Series) -> float:
     return half_life
 
 
-def create_strategy_config(params):
+def create_strategy_config(params, CAP):
     """
     Создает удобную сетку для дальнейших расчетов
     :param params: начальные init параметры
     :return: словарь из параметров использующийся везде
     """
-    capital = 20_000
+    capital = CAP
     slippage = 2
     retParams = {
         # Капитал

@@ -12,13 +12,18 @@ class ImRobot:
         :param config_file_way: Path to config txt
         :param strategyParameters_file_way: Path to strategy hyperparams file
         """
+
         self.name = name
-        config = pd.read_csv(str(config_file_way), header=0, sep=' ')
-        self.time_interval = float(config.iloc[list(config.index).index('updateTime: '), 0])
+        self._tradeCapital = 10_000
+        config = pd.read_csv(str(config_file_way), header=None, index_col=0, sep=',')
+        self.time_interval = float(config.loc['updateTime'])
         del config
 
-        self._initStrategyParams = pd.read_csv(strategyParameters_file_way, header=0, sep=',')
-        self.strategyParams = create_strategy_config(self._initStrategyParams)
+        self._initStrategyParams = pd.read_csv(strategyParameters_file_way, header=None).T
+        self._initStrategyParams = pd.Series(data=self._initStrategyParams.iloc[1, :].values,
+                                             index=self._initStrategyParams.iloc[0, :])
+
+        self.strategyParams = create_strategy_config(self._initStrategyParams, CAP=self._tradeCapital)
 
         self.connector = None
         self.statCollector = None
@@ -31,12 +36,11 @@ class ImRobot:
 
         self._PastPricesArray = list()
 
-        self.tradeCapital = 10_000
 
     def _collect_past_prices(self):
         # We need at least self._initStrategyParams.scanHalfTime
-        self._PastPricesArray = self.connector.collect_past_multiple_prices(self._initStrategyParams.scanHalfTime)
-        pass
+        self._PastPricesArray = self.connector.collect_past_multiple_prices(int(self._initStrategyParams['scanHalfTime']))
+        print(f'Successfully downloaded last {self.strategyParams["scanHalfTime"]} dotes')
 
     def _collect_new_price(self):
         newPrice = self.connector.get_actual_data()
@@ -49,8 +53,8 @@ class ImRobot:
     def add_statistics_collector(self, collector):
         self.statCollector = collector
 
-    def add_connector(self, connector):
-        self.connector = connector
+    def add_connector(self, connectorInterface):
+        self.connector = connectorInterface
 
     def _open_trade_ability(self):
         openDict = {
@@ -61,7 +65,7 @@ class ImRobot:
             'stopLossBorder': None,
             'takeProfitBorder': None
         }
-        half_time = int(get_half_time(self._PastPricesArray[-int(self.strategyParams.scanHalfTime):]))
+        half_time = int(get_half_time(pd.Series(self._PastPricesArray[-int(self.strategyParams['scanHalfTime']):])))
         if (half_time > self.strategyParams['scanHalfTime']) or (half_time < 0):
             return False
         self.strategyParams["rollingMean"] = int(half_time * self.strategyParams['halfToLight'])
@@ -72,9 +76,10 @@ class ImRobot:
 
         self.strategyParams["varianceLookBack"] = int(half_time * self.strategyParams['halfToFat'])
         self.strategyParams["varianceRatioCarrete"] = int((half_time *
-                                                           self.strategyParams['halfToFat']) // self.strategyParams['varianceRatioCarreteParameter']) + 1
+                                                           self.strategyParams['halfToFat']) //
+                                                          self.strategyParams['varianceRatioCarreteParameter']) + 1
 
-        workingArray = self._PastPricesArray[-int(self.strategyParams.scanHalfTime):]
+        workingArray = self._PastPricesArray[-int(self.strategyParams['scanHalfTime']):]
         bandMean = np.mean(workingArray)
         bandStd = np.std(workingArray)
 
@@ -137,7 +142,7 @@ class ImRobot:
             if not self.waitingToFatMean:
                 workingArray = self._PastPricesArray[-int(self.strategyParams['rollingMean']):]
                 bandMean = np.mean(workingArray)
-
+                MeanFat = np.mean(self._PastPricesArray[-int(self.strategyParams['fatRollingMean']):])
                 if self._PastPricesArray[-1] > bandMean:
                     _log = self._PastPricesArray[-(int(max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean']))+1):]
                     compute = {
@@ -145,10 +150,82 @@ class ImRobot:
                         "logOpenPrice": _log[1:]
                     }
                     assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
+                    if MeanFat > bandMean:
+                        if reverse_variance_ratio(preComputed=compute, params=self.strategyParams, timeBorderCounter=self.tradingTimer.elapsed() // 60, VRstatement=self.waitingToFatMean):
+                            self.waitingToFatMean = True
+                            return False
+                        else:
+                            return {'typeHolding': 'lightCross', 'closePrice': bandMean}
+                    else:
+                        return {'typeHolding': 'lightCrossEmergent', 'closePrice': bandMean}
 
-                    if reverse_variance_ratio(preComputed=compute, params=self.strategyParams, timeBorderCounter=self.tradingTimer.elapsed() // 60, VRstatement=self.waitingToFatMean):
+            if self.waitingToFatMean:
+                MeanFat = np.mean(self._PastPricesArray[-int(self.strategyParams['fatRollingMean']):])
+                if self._PastPricesArray[-1] > MeanFat:
+                    return {'typeHolding': 'fatExtraProfit', 'closePrice': MeanFat}
 
+                _log = self._PastPricesArray[
+                       -(int(max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
+                compute = {
+                    "retOpenPrice": np.diff(_log),
+                    "logOpenPrice": _log[1:]
+                }
+                if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams, timeBorderCounter=self.tradingTimer.elapsed() // 60, VRstatement=self.waitingToFatMean):
+                    self.waitingToFatMean = False
+                    return False
 
+        if self._positionDetails['typeOperation'] == 'SELL':
+            if self._PastPricesArray[-1] > self._positionDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArray[-1]}
+            # Block with Trailing StopLoss. This realization is not good. Need to change
+            delta = self._PastPricesArray[-1] - self._PastPricesArray[-2]
+            if delta < 0:
+                self._positionDetails['stopLossBorder'] = round(self._positionDetails['stopLossBorder'] - delta, 3)
+
+            if self._PastPricesArray[-1] > self._positionDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArray[-1]}
+
+            if not self.waitingToFatMean:
+                workingArray = self._PastPricesArray[-int(self.strategyParams['rollingMean']):]
+                bandMean = np.mean(workingArray)
+                MeanFat = np.mean(self._PastPricesArray[-int(self.strategyParams['fatRollingMean']):])
+                if self._PastPricesArray[-1] < bandMean:
+                    _log = self._PastPricesArray[-(int(
+                        max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
+                    compute = {
+                        "retOpenPrice": np.diff(_log),
+                        "logOpenPrice": _log[1:]
+                    }
+                    assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
+                    if MeanFat < bandMean:
+                        if reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                                                  timeBorderCounter=self.tradingTimer.elapsed() // 60,
+                                                  VRstatement=self.waitingToFatMean):
+                            self.waitingToFatMean = True
+                            return False
+                        else:
+                            return {'typeHolding': 'lightCross', 'closePrice': bandMean}
+                    else:
+                        return {'typeHolding': 'lightCrossEmergent', 'closePrice': bandMean}
+
+            if self.waitingToFatMean:
+                MeanFat = np.mean(self._PastPricesArray[-int(self.strategyParams['fatRollingMean']):])
+                if self._PastPricesArray[-1] < MeanFat:
+                    return {'typeHolding': 'fatExtraProfit', 'closePrice': MeanFat}
+
+                _log = self._PastPricesArray[
+                       -(int(max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
+                compute = {
+                    "retOpenPrice": np.diff(_log),
+                    "logOpenPrice": _log[1:]
+                }
+                if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                                              timeBorderCounter=self.tradingTimer.elapsed() // 60,
+                                              VRstatement=self.waitingToFatMean):
+                    self.waitingToFatMean = False
+                    return False
+
+        return False
 
     def _trading_loop(self):
         # Waiting until we can open a trade
@@ -177,8 +254,8 @@ class ImRobot:
         _stat['StrategyWorkingTime'] = self.timer.elapsed()
         self.statCollector.add_trade_line(_stat)
 
-
     def start_tradingCycle(self):
+        self._collect_past_prices()
         if (self.timer is None) or (self.tradingTimer is None):
             raise ModuleNotFoundError('Timer not plugged')
         if self.connector is None:
@@ -189,5 +266,26 @@ class ImRobot:
 
         self.timer.start()
         while True:
-            self.strategyParams = create_strategy_config(self._initStrategyParams)
+            self.strategyParams = create_strategy_config(self._initStrategyParams, CAP=self._tradeCapital)
             self._trading_loop()
+
+
+from timerModule import Timer
+from statCollectorModule import PandasStatCollector
+from historicalSimulateCollector import *
+
+monkeyRobot = ImRobot('MNKY', config_file_way="robotConfig.txt", strategyParameters_file_way="strategyParameters.txt")
+
+timerGlobal = Timer()
+timerTrade = Timer()
+
+connector = SimulatedOrderGenerator("dataForGenerator.csv")
+
+pandasCollector = PandasStatCollector("stat.csv")
+
+
+monkeyRobot.add_timer(timerGlobal, timerTrade)
+monkeyRobot.add_statistics_collector(pandasCollector)
+monkeyRobot.add_connector(connector)
+
+monkeyRobot.start_tradingCycle()

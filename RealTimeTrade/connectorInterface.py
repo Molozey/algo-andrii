@@ -10,12 +10,13 @@ from pprint import pprint
 import time
 import json
 
+
 class AbstractOrderInterface:
     def __init__(self):
         token = "eyJhbGciOiJFUzI1NiIsIng1dCI6IkRFNDc0QUQ1Q0NGRUFFRTlDRThCRDQ3ODlFRTZDOTEyRjVCM0UzOTQifQ.eyJvYWEiOiI3Nzc3NSIsImlzcyI6Im9hIiwiYWlkIjoiMTA5IiwidWlkIjoiVG1XWGlqam1ZdFk0ZmF0MkIwZDdYdz09IiwiY2lkIjoiVG1XWGlqam1ZdFk0ZmF0MkIwZDdYdz09IiwiaXNhIjoiRmFsc2UiLCJ0aWQiOiIyMDAyIiwic2lkIjoiNmRkMjBkMGYwYWI3NDZjZWE1NThiMzc1NWM3MzI4ZDkiLCJkZ2kiOiI4NCIsImV4cCI6IjE2NDk0MjEzOTMiLCJvYWwiOiIxRiJ9.Q0Y6xfW_2Hetns3SsRhV3LrGyddDW2TLeM5NUiGdGHw-TeXPa0M4SYWVU8FcifzmYLVm8PNv07n6TDZ2_T6wCg"
             
     @abstractmethod
-    def get_fx_quote(list_tickers):
+    def get_fx_quote(self, list_tickers):
         '''
         return a dict with elements like (where ticker_n is ticker and a key for the dictinary):
             ticker_n : {'AssetType': 'FxSpot',
@@ -55,7 +56,7 @@ class AbstractOrderInterface:
         return dict(zip(list_tickers, client.request(r)['Data']))
 
     @abstractmethod
-    def place_open_order(client, AccountKey, dict_orders):
+    def place_open_order(self, client, AccountKey, dict_orders):
         '''
         dict_orders = {fx_ticker: Amount}
         fx_ticker: text
@@ -87,7 +88,7 @@ class AbstractOrderInterface:
 
 # WHERE WE WILL PUT NEXT ? :
     # client to requests  process
-    client = API(access_token=token)
-    AccountKey = account_info(client).AccountKey
+    # client = API(access_token=token)
+    # AccountKey = account_info(client).AccountKey
     
     
