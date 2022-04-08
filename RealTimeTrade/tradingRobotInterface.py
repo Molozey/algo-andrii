@@ -1,14 +1,16 @@
 import pandas as pd
 import numpy as np
 import time
-from utils import get_half_time, reverse_variance_ratio, variance_ratio, create_strategy_config
+
 import datetime
 import argparse
 
-from timerModule import Timer
-from statCollectorModule import PandasStatCollector
-from historicalSimulateCollector import *
-from connectorInterface import SaxoOrderInterface
+
+from utils.utils import get_half_time, reverse_variance_ratio, variance_ratio, create_strategy_config
+from utils.timerModule import Timer
+from utils.statCollectorModule import PandasStatCollector
+from utils.historicalSimulateCollector import *
+from utils.connectorInterface import SaxoOrderInterface
 
 
 class ImRobot:
@@ -256,6 +258,7 @@ class ImRobot:
                 self.connector.place_order({self.SAXO: openAbility['position']})
                 self._inPosition = True
                 self.tradingTimer.start()
+                break
             time.sleep(self.time_interval)
 
         self._positionDetails = openAbility
@@ -268,11 +271,13 @@ class ImRobot:
                 self.connector.place_order({self.SAXO: -1 * openAbility['position']})
                 self._inPosition = False
                 self.tradingTimer.stop()
+                break
             time.sleep(self.time_interval)
 
         _stat = {**openAbility, **closeAbility}
         _stat['StrategyWorkingTime'] = self.timer.elapsed()
         _stat['Time'] = datetime.datetime.now()
+        print(_stat)
         self.statCollector.add_trade_line(_stat)
 
     def start_tradingCycle(self):
@@ -313,7 +318,7 @@ monkeyRobot.add_timer(timerGlobal, timerTrade)
 monkeyRobot.add_statistics_collector(pandasCollector)
 monkeyRobot.add_connector(connector)
 
-# monkeyRobot.start_tradingCycle()
+monkeyRobot.start_tradingCycle()
 
 
 # print(connector.get_actual_data(['CHFJPY']))
