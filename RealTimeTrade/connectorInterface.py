@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from saxo_openapi import API
-from saxo_openapi.contrib.orders import (tie_account_to_order, MarketOrderFxSpot, StopOrderFxSpot)
+from saxo_openapi.contrib.orders import tie_account_to_order, MarketOrderFxSpot, StopOrderFxSpot, LimitOrderFxSpot
 from saxo_openapi.contrib.orders.onfill import TakeProfitDetails, StopLossDetails
+import saxo_openapi.endpoints.chart as chart
 from saxo_openapi.contrib.util import InstrumentToUic
 from saxo_openapi.contrib.session import account_info
 import saxo_openapi.endpoints.trading as tr
@@ -44,7 +45,7 @@ class AbstractOrderInterface:
 
 class SaxoOrderInterface(AbstractOrderInterface):
     def __init__(self):
-        self._token = "eyJhbGciOiJFUzI1NiIsIng1dCI6IkRFNDc0QUQ1Q0NGRUFFRTlDRThCRDQ3ODlFRTZDOTEyRjVCM0UzOTQifQ.eyJvYWEiOiI3Nzc3NSIsImlzcyI6Im9hIiwiYWlkIjoiMTA5IiwidWlkIjoiNGFOUTNBSE41TnRDUmJ8UjNkNy1hdz09IiwiY2lkIjoiNGFOUTNBSE41TnRDUmJ8UjNkNy1hdz09IiwiaXNhIjoiRmFsc2UiLCJ0aWQiOiIyMDAyIiwic2lkIjoiMjY4ZDk5N2Y3NWY5NDdhZGIzOGYzN2NhNmNmMzhiMzIiLCJkZ2kiOiI4NCIsImV4cCI6IjE2NDk0NjAwOTkiLCJvYWwiOiIxRiJ9.6pj_qgmVs0xQc_W60hdg6LO8NamQorpvXdFFkjIBFGc-RkyNLIk-QemyaB_YoCo3ZjTqQ1QIhQDubXOEL7Ddig"
+        self._token = "eyJhbGciOiJFUzI1NiIsIng1dCI6IkRFNDc0QUQ1Q0NGRUFFRTlDRThCRDQ3ODlFRTZDOTEyRjVCM0UzOTQifQ.eyJvYWEiOiI3Nzc3NSIsImlzcyI6Im9hIiwiYWlkIjoiMTA5IiwidWlkIjoiVG1XWGlqam1ZdFk0ZmF0MkIwZDdYdz09IiwiY2lkIjoiVG1XWGlqam1ZdFk0ZmF0MkIwZDdYdz09IiwiaXNhIjoiRmFsc2UiLCJ0aWQiOiIyMDAyIiwic2lkIjoiMTgyYTgyYzZhYjVlNGVlN2FlOWRhNzQ4NTk3ODVlOTAiLCJkZ2kiOiI4NCIsImV4cCI6IjE2NDk1MDQ3OTEiLCJvYWwiOiIxRiJ9.NG7Wf_iLNaTjDWKYkWVT0ZCSbBSjbO8ExDLBOKAncsnuAEZNNAczWFqIbEHLNXw0qIavAVi8Zhgjlr8C3J0mBg"
 
         self._client = API(access_token=self._token)
         self._AccountKey = account_info(self._client).AccountKey
@@ -63,7 +64,7 @@ class SaxoOrderInterface(AbstractOrderInterface):
 
     def get_actual_data(self, list_tickers):
         '''
-        list_tickers = ['CHFJPY']
+        list_tickers = ['CHFJPY', ...]
         return a dict with elements like (where ticker_n is ticker and a key for the dictinary):
             ticker_n : {'AssetType': 'FxSpot',
                         'LastUpdated': '2022-04-07T17:25:09.946000Z',
@@ -102,27 +103,82 @@ class SaxoOrderInterface(AbstractOrderInterface):
         answer = dict(zip(list_tickers, self._client.request(r)['Data']))
         return answer[list_tickers[0]]['Quote']['Mid']
 
-    def place_order(self, dict_orders):
+    def place_order(self, dict_orders, order_type, order_price=None):
         '''
-        dict_orders = {fx_ticker: Amount}
-        fx_ticker: text
-        Amount: -int, +int
+        order_type: "market" or "limit"
+        order_price: if order_type == "limit", then order_price is nesessary
+        dict_orders = {fx_ticket: Amount}
+        fx_ticket: text
+        Amount: -int, +int 
         '''
-
-        # Если amount -1 <=> закрытию позиции
-        for ticker, amount in dict_orders.items():
+        for ticket, amount in dict_orders.items():
             try:
                 # find the Uic for Instrument
-                uic = list(InstrumentToUic(self._client, self._AccountKey, spec={'Instrument': ticker}).values())[0]
-                order = tie_account_to_order(self._AccountKey, MarketOrderFxSpot(Uic=uic, Amount=amount))
+                uic = list(InstrumentToUic(client, AccountKey, spec={'Instrument': ticket}).values())[0]
+                if order_type == "market":
+                    order = tie_account_to_order(AccountKey, MarketOrderFxSpot(Uic=uic, Amount=amount))
+                elif order_type == "limit":
+                    order = tie_account_to_order(AccountKey, LimitOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=order_price))
                 r = tr.orders.Order(data=order)
-                rv = self._client.request(r)
-                print(f'{ticker} amount {amount}: {rv}')
-                return True
+                rv = client.request(r)
+                print(f'{ticket} amount {amount}: {rv}')
             except Exception as error:
-                print(f'{ticker}: {error}')
-                return False
+                print(f'{ticket}: {error}')
+            time.sleep(1)
 
+    def get_asset_data_hist(ticker, density, amount_intervals):
+        '''
+        ticker: text ("EURUSD")
+        density: int, in minutes (min 1)
+        amount_intervals: int, how many historical intervals with the density (max 1200)
 
+        return: a list of dicts, where one element like the next
+            {'CloseAsk': 1.64488,
+            'CloseBid': 1.64408,
+            'HighAsk': 1.64499,
+            'HighBid': 1.64419,
+            'LowAsk': 1.64472,
+            'LowBid': 1.64392,
+            'OpenAsk': 1.64493,
+            'OpenBid': 1.64413,
+            'Time': '2022-04-07T16:17:00.000000Z'}
+        '''
+        uic = list(InstrumentToUic(self._client, self._AccountKey, spec={'Instrument': ticker}).values())[0]
+        params = {
+                "AssetType": "FxSpot",
+                "Horizon": density, # 1 muinte density (min 1 minute)
+                "Count": amount_intervals, # how many historical intervals with the "Horizont" (max 1200)
+                "Uic": uic
+                }
+        r = chart.charts.GetChartData(params=params)
+        rv = client.request(r)
+        return rv['Data']
+    
+    def portfolio_open_positions():
+        '''
+        return a dict with one pair "key: int" and with dicts.
+        It looks like:
+            'EURUSD': {
+                'amount_long': 75000.0,
+                'amount_short': 0.0,
+                'type_asset': 'FxSpot',
+                'uic': 21},
+            'amount_positions': 6
 
+        where:
+            "amount_positions" is number positions in account
+        '''
 
+        r = pf.netpositions.NetPositionsMe(params={})
+        client.request(r)
+        rv = r.response
+        dict_positions = {}
+        for n in range(len(rv['Data'])):
+            ticker_type_asset = rv['Data'][n]['NetPositionId'].split('__')
+            potision_info = {'amount_long': rv['Data'][n]['NetPositionBase']['AmountLong'],
+                            'amount_short': rv['Data'][n]['NetPositionBase']['AmountShort'],
+                            'uic': rv['Data'][n]['NetPositionBase']['Uic'],
+                            'type_asset': ticker_type_asset[1]}
+            dict_positions[ticker_type_asset[0]] = potision_info
+        dict_positions['amount_positions'] = rv['__count']
+        return dict_positions
