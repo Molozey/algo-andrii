@@ -3,6 +3,12 @@ import numpy as np
 import time
 from utils import get_half_time, reverse_variance_ratio, variance_ratio, create_strategy_config
 import datetime
+import argparse
+
+from timerModule import Timer
+from statCollectorModule import PandasStatCollector
+from historicalSimulateCollector import *
+from connectorInterface import SaxoOrderInterface
 
 
 class ImRobot:
@@ -49,8 +55,7 @@ class ImRobot:
         self._PastPricesArray = self.connector.get_asset_data_hist(self.SAXO, 1, int(min(self._initStrategyParams["scanHalfTime"], 1200)))
         self._PastPricesArray = pd.DataFrame(self._PastPricesArray)
         self._PastPricesArray.to_csv('TESTINGprices.csv')
-        self._PastPricesArray = self._PastPricesArray.apply(lambda x: round((x.OpenBid + x["OpenAsk"]) / 2, 3), axis=1)
-        print(self._PastPricesArray)
+        self._PastPricesArray = list(self._PastPricesArray.apply(lambda x: round((x.OpenBid + x["OpenAsk"]) / 2, 3), axis=1).values)
         # self._PastPricesArray = pd.read_csv('TESTINGprices.csv')
         # self._PastPricesArray = list(self._PastPricesArray.open.values)
         print(f'Successfully downloaded last {self.strategyParams["scanHalfTime"]} dotes')
@@ -100,7 +105,6 @@ class ImRobot:
         lowBand = round(bandMean - bandStd * self.strategyParams['yThreshold'], 3)
         highBand = round(bandMean + bandStd * self.strategyParams['yThreshold'], 3)
 
-        print(f"LowBand={lowBand} HighBand={highBand} lastAvailable={workingArray[-1]}")
         if workingArray[-1] < lowBand:
             logTuple = self._PastPricesArray[-(int(self.strategyParams['varianceLookBack']) + 1):]
             retTuple = np.diff(logTuple)
@@ -288,13 +292,13 @@ class ImRobot:
             self._trading_loop()
 
 
-from timerModule import Timer
-from statCollectorModule import PandasStatCollector
-from historicalSimulateCollector import *
-from connectorInterface import SaxoOrderInterface
+parser = argparse.ArgumentParser(description='Creates csv into backTest dir')
+parser.add_argument('--currencyPair', help='for example CHFJPY', default='CHFJPY')
+args = parser.parse_args()
+
 
 monkeyRobot = ImRobot('MNKY', config_file_way="robotConfig.txt", strategyParameters_file_way="strategyParameters.txt",
-                      tickerSaxo='CHFJPY', tickerEOD='CHFJPY.FOREX')
+                      tickerSaxo=f'{args.currencyPair}', tickerEOD=f'{args.currencyPair}.FOREX')
 
 timerGlobal = Timer()
 timerTrade = Timer()
@@ -309,7 +313,7 @@ monkeyRobot.add_timer(timerGlobal, timerTrade)
 monkeyRobot.add_statistics_collector(pandasCollector)
 monkeyRobot.add_connector(connector)
 
-monkeyRobot.start_tradingCycle()
+# monkeyRobot.start_tradingCycle()
 
 
 # print(connector.get_actual_data(['CHFJPY']))
