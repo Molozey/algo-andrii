@@ -2,10 +2,11 @@ import pandas as pd
 import numpy as np
 import time
 from utils import get_half_time, reverse_variance_ratio, variance_ratio, create_strategy_config
+import datetime
 
 
 class ImRobot:
-    def __init__(self, name, config_file_way, strategyParameters_file_way):
+    def __init__(self, name, config_file_way, strategyParameters_file_way, tickerSaxo, tickerEOD):
         """
 
         :param name: Robot Name
@@ -14,7 +15,7 @@ class ImRobot:
         """
 
         self.name = name
-        self._tradeCapital = 10_000
+        self._tradeCapital = 100_000_00
         config = pd.read_csv(str(config_file_way), header=None, index_col=0, sep=',')
         self.time_interval = float(config.loc['updateTime'])
         del config
@@ -35,14 +36,23 @@ class ImRobot:
         self.waitingToFatMean = False
 
         self._PastPricesArray = list()
+        self.SAXO = tickerSaxo
+        self.EOD = tickerEOD
 
     def _collect_past_prices(self):
         # We need at least self._initStrategyParams.scanHalfTime
-        self._PastPricesArray = self.connector.collect_past_multiple_prices(int(self._initStrategyParams['scanHalfTime']))
+        shiftedTime = (datetime.datetime.now() - pd.Timedelta(f'{self._initStrategyParams["scanHalfTime"]}T')).strftime('%Y-%m-%d %H:%M:%S')
+        actualTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # self._PastPricesArray = self.connector.get_asset_data_hist(symbol=self.EOD, interval='1m', from_=shiftedTime, to=actualTime)
+        # self._PastPricesArray = pd.DataFrame(self._PastPricesArray)
+        # self._PastPricesArray.to_csv('TESTINGprices.csv')
+        self._PastPricesArray = pd.read_csv('TESTINGprices.csv')
+        self._PastPricesArray = list(self._PastPricesArray.open.values)
         print(f'Successfully downloaded last {self.strategyParams["scanHalfTime"]} dotes')
+        del shiftedTime, actualTime
 
     def _collect_new_price(self):
-        newPrice = self.connector.get_actual_data()
+        newPrice = self.connector.get_actual_data([self.SAXO])
         self._PastPricesArray.append(newPrice)
 
     def add_timer(self, timer, tradingTimer):
@@ -85,6 +95,7 @@ class ImRobot:
         lowBand = round(bandMean - bandStd * self.strategyParams['yThreshold'], 3)
         highBand = round(bandMean + bandStd * self.strategyParams['yThreshold'], 3)
 
+        print(f"LowBand={lowBand} HighBand={highBand} lastAvailable={workingArray[-1]}")
         if workingArray[-1] < lowBand:
             logTuple = self._PastPricesArray[-(int(self.strategyParams['varianceLookBack']) + 1):]
             retTuple = np.diff(logTuple)
@@ -93,9 +104,9 @@ class ImRobot:
 
             if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
                 openDict['typeOperation'] = 'BUY'
-                openDict['position'] = round(self.tradeCapital / lowBand, 3)
+                openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
                 openDict['openPrice'] = lowBand
-                openDict['openTime'] = self.tradingTimer.elapsed()
+                openDict['openTime'] = self.timer.elapsed()
                 openDict['stopLossBorder'] = round(lowBand - self.strategyParams['stopLossStdMultiplier'] * bandStd, 3)
                 openDict['takeProfitBorder'] = round(lowBand +
                                                      self.strategyParams['takeProfitStdMultiplier'] * bandStd, 3)
@@ -110,9 +121,9 @@ class ImRobot:
 
             if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
                 openDict['typeOperation'] = 'SELL'
-                openDict['position'] = -1 * round(self.tradeCapital / highBand, 3)
+                openDict['position'] = int(-1 * round(self._tradeCapital / highBand, 3))
                 openDict['openPrice'] = highBand
-                openDict['openTime'] = self.tradingTimer.elapsed()
+                openDict['openTime'] = self.timer.elapsed()
                 openDict['stopLossBorder'] = round(highBand - self.strategyParams['stopLossStdMultiplier'] * bandStd, 3)
                 openDict['takeProfitBorder'] = round(highBand +
                                                      self.strategyParams['takeProfitStdMultiplier'] * bandStd, 3)
@@ -232,7 +243,8 @@ class ImRobot:
             self._collect_new_price()
             openAbility = self._open_trade_ability()
             if isinstance(openAbility, dict):
-                self.connector.place_open_order()
+                print(openAbility)
+                self.connector.place_order({self.SAXO: openAbility['position']})
                 self._inPosition = True
                 self.tradingTimer.start()
             time.sleep(self.time_interval)
@@ -244,7 +256,7 @@ class ImRobot:
             self._collect_new_price()
             closeAbility = self._close_trade_ability()
             if isinstance(closeAbility, dict):
-                self.connector.place_close_order()
+                self.connector.place_order({self.SAXO: -1 * openAbility['position']})
                 self._inPosition = False
                 self.tradingTimer.stop()
             time.sleep(self.time_interval)
@@ -265,6 +277,7 @@ class ImRobot:
 
         self.timer.start()
         while True:
+            print('Last Price in Slicer:', self._PastPricesArray[-1])
             self.strategyParams = create_strategy_config(self._initStrategyParams, CAP=self._tradeCapital)
             self._trading_loop()
 
@@ -272,19 +285,30 @@ class ImRobot:
 from timerModule import Timer
 from statCollectorModule import PandasStatCollector
 from historicalSimulateCollector import *
+from connectorInterface import SaxoOrderInterface
 
-monkeyRobot = ImRobot('MNKY', config_file_way="robotConfig.txt", strategyParameters_file_way="strategyParameters.txt")
+monkeyRobot = ImRobot('MNKY', config_file_way="robotConfig.txt", strategyParameters_file_way="strategyParameters.txt",
+                      tickerSaxo='CHFJPY', tickerEOD='CHFJPY.FOREX')
 
 timerGlobal = Timer()
 timerTrade = Timer()
 
-connector = SimulatedOrderGenerator("dataForGenerator.csv")
+# connector = SimulatedOrderGenerator("dataForGenerator.csv")
 
+connector = SaxoOrderInterface()
 pandasCollector = PandasStatCollector("stat.csv")
-
-
+#
+#
 monkeyRobot.add_timer(timerGlobal, timerTrade)
 monkeyRobot.add_statistics_collector(pandasCollector)
 monkeyRobot.add_connector(connector)
 
 monkeyRobot.start_tradingCycle()
+
+
+# print(connector.get_actual_data(['CHFJPY']))
+
+
+# shiftedTime = (datetime.datetime.now() - pd.Timedelta('1450T')).strftime('%Y-%m-%d %H:%M:%S')
+# actualTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+# print(connector.get_asset_data_hist(symbol='CHFJPY.FOREX', interval='1h', from_=shiftedTime, to=actualTime))

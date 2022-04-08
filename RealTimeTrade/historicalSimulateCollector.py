@@ -18,6 +18,6 @@ class SimulatedOrderGenerator(AbstractOrderInterface):
         self.position = numberOfDotes
         return list(self.data.open.iloc[:numberOfDotes])
 
-    def get_actual_data(self):
+    def get_actual_data(self, *args):
         self.position += 1
         return self.data.open.iloc[self.position-1]

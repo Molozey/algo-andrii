@@ -1,2 +1,2 @@
-updateTime,1
+updateTime,60
 reference,23
