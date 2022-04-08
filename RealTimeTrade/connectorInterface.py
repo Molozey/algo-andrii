@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from saxo_openapi import API
-from saxo_openapi.contrib.orders import (tie_account_to_order, MarketOrderFxSpot, StopOrderFxSpot)
+from saxo_openapi.contrib.orders import tie_account_to_order, MarketOrderFxSpot, StopOrderFxSpot, LimitOrderFxSpot
 from saxo_openapi.contrib.orders.onfill import TakeProfitDetails, StopLossDetails
 from saxo_openapi.contrib.util import InstrumentToUic
 from saxo_openapi.contrib.session import account_info
@@ -63,7 +63,7 @@ class SaxoOrderInterface(AbstractOrderInterface):
 
     def get_actual_data(self, list_tickers):
         '''
-        list_tickers = ['CHFJPY']
+        list_tickers = ['CHFJPY', ...]
         return a dict with elements like (where ticker_n is ticker and a key for the dictinary):
             ticker_n : {'AssetType': 'FxSpot',
                         'LastUpdated': '2022-04-07T17:25:09.946000Z',
@@ -102,27 +102,28 @@ class SaxoOrderInterface(AbstractOrderInterface):
         answer = dict(zip(list_tickers, self._client.request(r)['Data']))
         return answer[list_tickers[0]]['Quote']['Mid']
 
-    def place_order(self, dict_orders):
-        '''
-        dict_orders = {fx_ticker: Amount}
-        fx_ticker: text
-        Amount: -int, +int
-        '''
-
-        # Если amount -1 <=> закрытию позиции
-        for ticker, amount in dict_orders.items():
-            try:
-                # find the Uic for Instrument
-                uic = list(InstrumentToUic(self._client, self._AccountKey, spec={'Instrument': ticker}).values())[0]
-                order = tie_account_to_order(self._AccountKey, MarketOrderFxSpot(Uic=uic, Amount=amount))
-                r = tr.orders.Order(data=order)
-                rv = self._client.request(r)
-                print(f'{ticker} amount {amount}: {rv}')
-                return True
-            except Exception as error:
-                print(f'{ticker}: {error}')
-                return False
-
+    def place_order(self, dict_orders, order_type, order_price=None):
+    '''
+    order_type: "market" or "limit"
+    order_price: if order_type == "limit", then order_price is nesessary
+    dict_orders = {fx_ticket: Amount}
+    fx_ticket: text
+    Amount: -int, +int 
+    '''
+    for ticket, amount in dict_orders.items():
+        try:
+            # find the Uic for Instrument
+            uic = list(InstrumentToUic(client, AccountKey, spec={'Instrument': ticket}).values())[0]
+            if order_type == "market":
+                order = tie_account_to_order(AccountKey, MarketOrderFxSpot(Uic=uic, Amount=amount))
+            elif order_type == "limit":
+                order = tie_account_to_order(AccountKey, LimitOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=order_price))
+            r = tr.orders.Order(data=order)
+            rv = client.request(r)
+            print(f'{ticket} amount {amount}: {rv}')
+        except Exception as error:
+            print(f'{ticket}: {error}')
+        time.sleep(1)
 
     def get_asset_data_hist(self, symbol, interval=None, from_='1000-01-01', to=str(datetime.date.today()), api_token='5f75d2d79bbbb4.84214003'):
         # idditioal information: https://eodhistoricaldata.com/financial-apis/list-supported-forex-currencies/
