@@ -104,27 +104,27 @@ class SaxoOrderInterface(AbstractOrderInterface):
         return answer[list_tickers[0]]['Quote']['Mid']
 
     def place_order(self, dict_orders, order_type, order_price=None):
-    '''
-    order_type: "market" or "limit"
-    order_price: if order_type == "limit", then order_price is nesessary
-    dict_orders = {fx_ticket: Amount}
-    fx_ticket: text
-    Amount: -int, +int 
-    '''
-    for ticket, amount in dict_orders.items():
-        try:
-            # find the Uic for Instrument
-            uic = list(InstrumentToUic(client, AccountKey, spec={'Instrument': ticket}).values())[0]
-            if order_type == "market":
-                order = tie_account_to_order(AccountKey, MarketOrderFxSpot(Uic=uic, Amount=amount))
-            elif order_type == "limit":
-                order = tie_account_to_order(AccountKey, LimitOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=order_price))
-            r = tr.orders.Order(data=order)
-            rv = client.request(r)
-            print(f'{ticket} amount {amount}: {rv}')
-        except Exception as error:
-            print(f'{ticket}: {error}')
-        time.sleep(1)
+        '''
+        order_type: "market" or "limit"
+        order_price: if order_type == "limit", then order_price is nesessary
+        dict_orders = {fx_ticket: Amount}
+        fx_ticket: text
+        Amount: -int, +int 
+        '''
+        for ticket, amount in dict_orders.items():
+            try:
+                # find the Uic for Instrument
+                uic = list(InstrumentToUic(client, AccountKey, spec={'Instrument': ticket}).values())[0]
+                if order_type == "market":
+                    order = tie_account_to_order(AccountKey, MarketOrderFxSpot(Uic=uic, Amount=amount))
+                elif order_type == "limit":
+                    order = tie_account_to_order(AccountKey, LimitOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=order_price))
+                r = tr.orders.Order(data=order)
+                rv = client.request(r)
+                print(f'{ticket} amount {amount}: {rv}')
+            except Exception as error:
+                print(f'{ticket}: {error}')
+            time.sleep(1)
 
     def get_asset_data_hist(ticker, density, amount_intervals):
         '''
@@ -153,3 +153,32 @@ class SaxoOrderInterface(AbstractOrderInterface):
         r = chart.charts.GetChartData(params=params)
         rv = client.request(r)
         return rv['Data']
+    
+    def portfolio_open_positions():
+        '''
+        return a dict with one pair "key: int" and with dicts.
+        It looks like:
+            'EURUSD': {
+                'amount_long': 75000.0,
+                'amount_short': 0.0,
+                'type_asset': 'FxSpot',
+                'uic': 21},
+            'amount_positions': 6
+
+        where:
+            "amount_positions" is number positions in account
+        '''
+
+        r = pf.netpositions.NetPositionsMe(params={})
+        client.request(r)
+        rv = r.response
+        dict_positions = {}
+        for n in range(len(rv['Data'])):
+            ticker_type_asset = rv['Data'][n]['NetPositionId'].split('__')
+            potision_info = {'amount_long': rv['Data'][n]['NetPositionBase']['AmountLong'],
+                            'amount_short': rv['Data'][n]['NetPositionBase']['AmountShort'],
+                            'uic': rv['Data'][n]['NetPositionBase']['Uic'],
+                            'type_asset': ticker_type_asset[1]}
+            dict_positions[ticker_type_asset[0]] = potision_info
+        dict_positions['amount_positions'] = rv['__count']
+        return dict_positions
