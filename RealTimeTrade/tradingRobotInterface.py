@@ -46,8 +46,13 @@ class ImRobot:
         # self._PastPricesArray = self.connector.get_asset_data_hist(symbol=self.EOD, interval='1m', from_=shiftedTime, to=actualTime)
         # self._PastPricesArray = pd.DataFrame(self._PastPricesArray)
         # self._PastPricesArray.to_csv('TESTINGprices.csv')
-        self._PastPricesArray = pd.read_csv('TESTINGprices.csv')
-        self._PastPricesArray = list(self._PastPricesArray.open.values)
+        self._PastPricesArray = self.connector.get_asset_data_hist(self.SAXO, 1, int(min(self._initStrategyParams["scanHalfTime"], 1200)))
+        self._PastPricesArray = pd.DataFrame(self._PastPricesArray)
+        self._PastPricesArray.to_csv('TESTINGprices.csv')
+        self._PastPricesArray = self._PastPricesArray.apply(lambda x: round((x.OpenBid + x["OpenAsk"]) / 2, 3), axis=1)
+        print(self._PastPricesArray)
+        # self._PastPricesArray = pd.read_csv('TESTINGprices.csv')
+        # self._PastPricesArray = list(self._PastPricesArray.open.values)
         print(f'Successfully downloaded last {self.strategyParams["scanHalfTime"]} dotes')
         del shiftedTime, actualTime
 
@@ -263,6 +268,7 @@ class ImRobot:
 
         _stat = {**openAbility, **closeAbility}
         _stat['StrategyWorkingTime'] = self.timer.elapsed()
+        _stat['Time'] = datetime.datetime.now()
         self.statCollector.add_trade_line(_stat)
 
     def start_tradingCycle(self):

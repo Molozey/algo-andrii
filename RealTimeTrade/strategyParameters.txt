@@ -6,7 +6,7 @@ restAfterFatProfit,1.0
 stopLossStdMultiplier,8000.0
 takeProfitStdMultiplier,4050.0
 varianceRatioCarreteParameter,40.0
-scanHalfTime,2000.0
+scanHalfTime,1000.0
 halfToFat,2.0
 halfToLight,1.0
 halfToTime,2.0
