@@ -46,7 +46,7 @@ class AbstractOrderInterface:
 
 class SaxoOrderInterface(AbstractOrderInterface):
     def __init__(self):
-        self._token = "eyJhbGciOiJFUzI1NiIsIng1dCI6IkRFNDc0QUQ1Q0NGRUFFRTlDRThCRDQ3ODlFRTZDOTEyRjVCM0UzOTQifQ.eyJvYWEiOiI3Nzc3NSIsImlzcyI6Im9hIiwiYWlkIjoiMTA5IiwidWlkIjoiVG1XWGlqam1ZdFk0ZmF0MkIwZDdYdz09IiwiY2lkIjoiVG1XWGlqam1ZdFk0ZmF0MkIwZDdYdz09IiwiaXNhIjoiRmFsc2UiLCJ0aWQiOiIyMDAyIiwic2lkIjoiMTgyYTgyYzZhYjVlNGVlN2FlOWRhNzQ4NTk3ODVlOTAiLCJkZ2kiOiI4NCIsImV4cCI6IjE2NDk1MDQ3OTEiLCJvYWwiOiIxRiJ9.NG7Wf_iLNaTjDWKYkWVT0ZCSbBSjbO8ExDLBOKAncsnuAEZNNAczWFqIbEHLNXw0qIavAVi8Zhgjlr8C3J0mBg"
+        self._token = "eyJhbGciOiJFUzI1NiIsIng1dCI6IkRFNDc0QUQ1Q0NGRUFFRTlDRThCRDQ3ODlFRTZDOTEyRjVCM0UzOTQifQ.eyJvYWEiOiI3Nzc3NSIsImlzcyI6Im9hIiwiYWlkIjoiMTA5IiwidWlkIjoiUnRqLWl2cTVpYmFoNGhaNDlsbFoxZz09IiwiY2lkIjoiUnRqLWl2cTVpYmFoNGhaNDlsbFoxZz09IiwiaXNhIjoiRmFsc2UiLCJ0aWQiOiIyMDAyIiwic2lkIjoiYzJiM2EyODg1NmY2NDgxOWE2MjcxYjA3YTEyYTg1OWYiLCJkZ2kiOiI4NCIsImV4cCI6IjE2NDk3NjAzNTciLCJvYWwiOiIxRiJ9.Mg7yXIE73thif3Elonqb8_n_jqTAJ7YAAxd6gX2bTNoyhTRzsY3NGyr2eW64oEPwcVjA7yCR7nSGPxGJbsdwqw"
 
         self._client = API(access_token=self._token)
         self._AccountKey = account_info(self._client).AccountKey
@@ -126,6 +126,43 @@ class SaxoOrderInterface(AbstractOrderInterface):
             except Exception as error:
                 print(f'{ticket}: {error}')
             time.sleep(1)
+            
+    def stop_order(ticker, amount, order_type, order_price=None):
+        '''
+        ticker: {text}, ('CHFJPY')
+        amount: {-int, +int}
+        order_type: 'market', 'limit'
+        order_price: None, {+int}
+            if order_type='market': order_price=None
+            if order_type='limit': order_price={+int}
+                (!) if long (amount > 0): order_price ≥ bid_price
+                (!) if short (amount < 0): order_price ≤ ask_price
+        "ask", "bid" corrections exist for "opder_type = 'market'" as saxo open api request only limits orders which
+        lower than "ask" (if amount < 0) and higher than "bid" (if amount > 0)
+        '''
+        ask_correction = 0.9995 # price must be lower then ask
+        bid_correction = 1.0005 # price must be higher then bid
+
+        ticker_data = fx_quote([ticker])[ticker]
+        ask = ticker_data['Quote']['Ask']
+        print(f"ask_1: {ask}")
+        bid = ticker_data['Quote']['Bid']
+        print(f"bid_1: {bid}")
+        uic = ticker_data['Uic']
+
+        if order_type == 'market':
+            if amount > 0:
+                order = tie_account_to_order(AccountKey, StopOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=bid*bid_correction))
+            elif amount < 0:
+                order = tie_account_to_order(AccountKey, StopOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=ask*ask_correction))
+        elif order_type == 'limit':
+            order = tie_account_to_order(AccountKey, StopOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=order_price))
+        r = tr.orders.Order(data=order)
+        try:
+            rv = client.request(r)   
+        except Exception as e:
+            print('May be price was changed a lot')
+            print(e)
 
     def get_asset_data_hist(self, ticker, density, amount_intervals):
         '''
