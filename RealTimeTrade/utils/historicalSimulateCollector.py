@@ -1,4 +1,4 @@
-from RealTimeTrade.utils.connectorInterface import AbstractOrderInterface
+from utils.connectorInterface import AbstractOrderInterface
 import pandas as pd
 
 

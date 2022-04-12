@@ -23,9 +23,9 @@ class ImRobot:
         """
 
         self.name = name
-        self._tradeCapital = 100_000_00
-        config = pd.read_csv(str(config_file_way), header=None, index_col=0, sep=',')
-        self.time_interval = float(config.loc['updateTime'])
+        self._tradeCapital = 100_000_0
+        config = pd.read_csv(str(config_file_way), header=None, index_col=0, sep=':')
+        self.time_interval = int(config.loc['updateTime'])
         del config
 
         self._initStrategyParams = pd.read_csv(strategyParameters_file_way, header=None).T
@@ -57,7 +57,8 @@ class ImRobot:
         self._PastPricesArray = self.connector.get_asset_data_hist(self.SAXO, 1, int(min(self._initStrategyParams["scanHalfTime"], 1200)))
         self._PastPricesArray = pd.DataFrame(self._PastPricesArray)
         self._PastPricesArray.to_csv('TESTINGprices.csv')
-        self._PastPricesArray = list(self._PastPricesArray.apply(lambda x: round((x.OpenBid + x["OpenAsk"]) / 2, 3), axis=1).values)
+        # self._PastPricesArray = list(self._PastPricesArray.apply(lambda x: round((x.OpenBid + x["OpenAsk"]) / 2, 3), axis=1).values)
+        self._PastPricesArray = list(self._PastPricesArray.apply(lambda x: x["OpenBid"], axis=1).values)
         # self._PastPricesArray = pd.read_csv('TESTINGprices.csv')
         # self._PastPricesArray = list(self._PastPricesArray.open.values)
         print(f'Successfully downloaded last {self.strategyParams["scanHalfTime"]} dotes')
@@ -252,36 +253,43 @@ class ImRobot:
         # Waiting until we can open a trade
         while not self._inPosition:
             self._collect_new_price()
+            # print('WaitOpenLast:', self._PastPricesArray[-1])
             openAbility = self._open_trade_ability()
             if isinstance(openAbility, dict):
                 print(openAbility)
                 self.connector.place_order({self.SAXO: openAbility['position']})
+                # self.connector.place_order({self.SAXO: openAbility['position']}, order_type='limit',
+                #                            order_price=openAbility['openPrice'])
+                # print(self.connector.get_actual_data([self.SAXO], mode='all'))
                 self._inPosition = True
                 self.tradingTimer.start()
-                break
             time.sleep(self.time_interval)
 
         self._positionDetails = openAbility
-
+        # REPLACE
         self.waitingToFatMean = False
         while self._inPosition:
             self._collect_new_price()
+            # print('WaitCloseLast:', self._PastPricesArray[-1])
             closeAbility = self._close_trade_ability()
+            print('CA', closeAbility)
             if isinstance(closeAbility, dict):
                 self.connector.place_order({self.SAXO: -1 * openAbility['position']})
+                # self.connector.place_order({self.SAXO: -1 * openAbility['position']}, order_type='limit',
+                #                            order_price=openAbility['openPrice'])
                 self._inPosition = False
                 self.tradingTimer.stop()
-                break
             time.sleep(self.time_interval)
 
         _stat = {**openAbility, **closeAbility}
         _stat['StrategyWorkingTime'] = self.timer.elapsed()
-        _stat['Time'] = datetime.datetime.now()
-        print(_stat)
+        _stat['DateTime'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         self.statCollector.add_trade_line(_stat)
+        time.sleep(self.time_interval)
 
     def start_tradingCycle(self):
         self._collect_past_prices()
+        initMinute = datetime.datetime.now().minute
         if (self.timer is None) or (self.tradingTimer is None):
             raise ModuleNotFoundError('Timer not plugged')
         if self.connector is None:
@@ -291,8 +299,12 @@ class ImRobot:
         pass
 
         self.timer.start()
+        while initMinute == datetime.datetime.now().minute:
+            time.sleep(0.05)
+            continue
+
         while True:
-            print('Last Price in Slicer:', self._PastPricesArray[-1])
+            # print('Last Price in Slicer:', self._PastPricesArray[-1])
             self.strategyParams = create_strategy_config(self._initStrategyParams, CAP=self._tradeCapital)
             self._trading_loop()
 
@@ -321,9 +333,4 @@ monkeyRobot.add_connector(connector)
 monkeyRobot.start_tradingCycle()
 
 
-# print(connector.get_actual_data(['CHFJPY']))
-
-
-# shiftedTime = (datetime.datetime.now() - pd.Timedelta('1450T')).strftime('%Y-%m-%d %H:%M:%S')
-# actualTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-# print(connector.get_asset_data_hist(symbol='CHFJPY.FOREX', interval='1h', from_=shiftedTime, to=actualTime))
+# monkeyRobot.connector.stop_order(ticker='CHFJPY', amount=400000)

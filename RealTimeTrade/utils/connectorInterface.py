@@ -18,7 +18,6 @@ import urllib
 import requests
 from RealTimeTrade.utils.saxoToolKit import *
 
-
 class AbstractOrderInterface:
     def __init__(self):
         pass
@@ -46,7 +45,7 @@ class AbstractOrderInterface:
 
 class SaxoOrderInterface(AbstractOrderInterface):
     def __init__(self):
-        self._token = "eyJhbGciOiJFUzI1NiIsIng1dCI6IkRFNDc0QUQ1Q0NGRUFFRTlDRThCRDQ3ODlFRTZDOTEyRjVCM0UzOTQifQ.eyJvYWEiOiI3Nzc3NSIsImlzcyI6Im9hIiwiYWlkIjoiMTA5IiwidWlkIjoiUnRqLWl2cTVpYmFoNGhaNDlsbFoxZz09IiwiY2lkIjoiUnRqLWl2cTVpYmFoNGhaNDlsbFoxZz09IiwiaXNhIjoiRmFsc2UiLCJ0aWQiOiIyMDAyIiwic2lkIjoiYzJiM2EyODg1NmY2NDgxOWE2MjcxYjA3YTEyYTg1OWYiLCJkZ2kiOiI4NCIsImV4cCI6IjE2NDk3NjAzNTciLCJvYWwiOiIxRiJ9.Mg7yXIE73thif3Elonqb8_n_jqTAJ7YAAxd6gX2bTNoyhTRzsY3NGyr2eW64oEPwcVjA7yCR7nSGPxGJbsdwqw"
+        self._token = "eyJhbGciOiJFUzI1NiIsIng1dCI6IkRFNDc0QUQ1Q0NGRUFFRTlDRThCRDQ3ODlFRTZDOTEyRjVCM0UzOTQifQ.eyJvYWEiOiI3Nzc3NSIsImlzcyI6Im9hIiwiYWlkIjoiMTA5IiwidWlkIjoiNGFOUTNBSE41TnRDUmJ8UjNkNy1hdz09IiwiY2lkIjoiNGFOUTNBSE41TnRDUmJ8UjNkNy1hdz09IiwiaXNhIjoiRmFsc2UiLCJ0aWQiOiIyMDAyIiwic2lkIjoiNjYzNDhkMGM2ZDRhNDk1ZmE4MjM0OTg3NzA1OTMwOTYiLCJkZ2kiOiI4NCIsImV4cCI6IjE2NDk4NzUzMTAiLCJvYWwiOiIxRiJ9.Y2XBiNQH6FqifSqmfLejDRHF6QzJavYWj86Ub5wdVKMnTB_FdTeJd4cU5CcZEQtl8UHaj_x3Ea0RsXq-SwYl0Q"
 
         self._client = API(access_token=self._token)
         self._AccountKey = account_info(self._client).AccountKey
@@ -63,7 +62,7 @@ class SaxoOrderInterface(AbstractOrderInterface):
         #                               request_args={'params': None}))
         # print(OwnRequest['Data'])
 
-    def get_actual_data(self, list_tickers):
+    def get_actual_data(self, list_tickers, mode='bidPrice'):
         '''
         list_tickers = ['CHFJPY', ...]
         return a dict with elements like (where ticker_n is ticker and a key for the dictinary):
@@ -102,7 +101,12 @@ class SaxoOrderInterface(AbstractOrderInterface):
         r = tr.infoprices.InfoPrices(params)
         # combine two lists in one dict:
         answer = dict(zip(list_tickers, self._client.request(r)['Data']))
-        return answer[list_tickers[0]]['Quote']['Mid']
+        if mode == 'midPrice':
+            return answer[list_tickers[0]]['Quote']['Mid']
+        if mode == 'bidPrice':
+            return answer[list_tickers[0]]['Quote']['Bid']
+        else:
+            return answer[list_tickers[0]]['Quote']
 
     def place_order(self, dict_orders, order_type="market", order_price=None):
         '''
@@ -126,8 +130,47 @@ class SaxoOrderInterface(AbstractOrderInterface):
             except Exception as error:
                 print(f'{ticket}: {error}')
             time.sleep(1)
-            
-    def stop_order(ticker, amount, order_type, order_price=None):
+
+    def get_fx_quote(self, list_tickers):
+        '''
+        return a dict with elements like (where ticker_n is ticker and a key for the dictinary):
+            ticker_n : {'AssetType': 'FxSpot',
+                        'LastUpdated': '2022-04-07T17:25:09.946000Z',
+                        'PriceSource': 'SBFX',
+                        'Quote': {'Amount': 100000,
+                        'Ask': 132.797,
+                        'Bid': 132.757,
+                        'DelayedByMinutes': 0,
+                        'ErrorCode': 'None',
+                        'MarketState': 'Open',
+                        'Mid': 132.777,
+                        'PriceSource': 'SBFX',
+                        'PriceSourceType': 'Firm',
+                        'PriceTypeAsk': 'Tradable',
+                        'PriceTypeBid': 'Tradable'},
+                        'Uic': 8}
+        '''
+        # transfer tickers into Uids:
+        str_uics = ''
+        for ticker in list_tickers:
+            try:
+                uic = str(list(InstrumentToUic(self._client, self._AccountKey, spec={'Instrument': ticker}).values())[0]) + ','
+                str_uics += uic
+            except Exception as error:
+                print(f'{ticker}: {error}')
+        str_uics = str_uics[:-1]
+
+        params = {
+            "Uics": str_uics,
+            "AccountKey": self._AccountKey,
+            "AssetType": 'FxSpot'
+            }
+        # ask quotes:
+        r = tr.infoprices.InfoPrices(params)
+        # combine two lists in one dict:
+        return dict(zip(list_tickers, self._client.request(r)['Data']))
+
+    def stop_order(self, ticker, amount, order_type='market', order_price=None):
         '''
         ticker: {text}, ('CHFJPY')
         amount: {-int, +int}
@@ -143,23 +186,24 @@ class SaxoOrderInterface(AbstractOrderInterface):
         ask_correction = 0.9995 # price must be lower then ask
         bid_correction = 1.0005 # price must be higher then bid
 
-        ticker_data = fx_quote([ticker])[ticker]
+        ticker_data = self.get_fx_quote([ticker])[ticker]
+        # print(ticker_data)
         ask = ticker_data['Quote']['Ask']
-        print(f"ask_1: {ask}")
+        # print(f"ask_1: {ask}")
         bid = ticker_data['Quote']['Bid']
-        print(f"bid_1: {bid}")
+        # print(f"bid_1: {bid}")
         uic = ticker_data['Uic']
 
         if order_type == 'market':
             if amount > 0:
-                order = tie_account_to_order(AccountKey, StopOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=bid*bid_correction))
+                order = tie_account_to_order(self._AccountKey, StopOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=bid*bid_correction))
             elif amount < 0:
-                order = tie_account_to_order(AccountKey, StopOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=ask*ask_correction))
+                order = tie_account_to_order(self._AccountKey, StopOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=ask*ask_correction))
         elif order_type == 'limit':
-            order = tie_account_to_order(AccountKey, StopOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=order_price))
+            order = tie_account_to_order(self._AccountKey, StopOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=order_price))
         r = tr.orders.Order(data=order)
         try:
-            rv = client.request(r)   
+            rv = self._client.request(r)
         except Exception as e:
             print('May be price was changed a lot')
             print(e)
@@ -243,3 +287,8 @@ class SaxoOrderInterface(AbstractOrderInterface):
         if bool(data) == False:
             return "The data with the parameters does not exist on the 'eodhistoricaldata.com' server."
         return data
+
+    def saxoToolKit(self):
+        url = f"https://gateway.saxobank.com/sim/openapi/ref/v1/currencypairs/?AccountKey={self._AccountKey}&ClientKey={self._ClientKey}"
+        print('saxoDEV', self._client.OWNREQUEST(method='get', url=url, request_args={}))
+

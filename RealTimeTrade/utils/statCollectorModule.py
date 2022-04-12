@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import pandas as pd
+from pandas.errors import EmptyDataError
 import os
 
 
@@ -30,11 +31,23 @@ class PandasStatCollector(StatCollector):
         :param line: pd.Series or dict
         :return:
         """
-        file = pd.read_csv(f"{self._filePath}", header=self._header, sep=self._sep)
-        if file.empty:
-            file = pd.DataFrame(line)
-            print('initial stat file:\n', file)
-        if not file.empty:
-            file = file.append(line, ignore_index=True)
+        try:
+            file = pd.read_csv(f"{self._filePath}", sep=self._sep, index_col=0)
+            if file.empty:
+                file = pd.Series(line).to_frame().T
+                print('initial stat file:\n', file)
+                file.reset_index(drop=True, inplace=True)
+                file.to_csv(f"{self._filePath}", sep=self._sep, header=1)
+                return None
+
+        except EmptyDataError:
+            file = pd.Series(line).to_frame().T
             file.reset_index(drop=True, inplace=True)
-            file.to_csv(f"{self._filePath}", sep=self._sep, header=self._header)
+            file.to_csv(f"{self._filePath}", sep=self._sep, header=1)
+            return None
+
+        if not file.empty:
+            file = file.append(pd.Series(line).T, ignore_index=True)
+            file.reset_index(drop=True, inplace=True)
+            file.to_csv(f"{self._filePath}", sep=self._sep)
+            return None
