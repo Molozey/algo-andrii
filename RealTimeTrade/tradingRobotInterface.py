@@ -109,8 +109,9 @@ class ImRobot:
         lowBand = round(bandMean - bandStd * self.strategyParams['yThreshold'], 3)
         highBand = round(bandMean + bandStd * self.strategyParams['yThreshold'], 3)
         if DEBUG:
-            print(self._PastPricesArray[-half_time:])
-            print(f"actualPrice:{workingArray[-1]} highBand:{highBand} lowBand:{lowBand} scanHalfTime:{half_time}")
+            # print(self._PastPricesArray[-half_time:])
+            # print(f"actualPrice:{workingArray[-1]} highBand:{highBand} lowBand:{lowBand} scanHalfTime:{half_time}")
+            pass
 
         if (workingArray[-2] > lowBand) and (workingArray[-1] < lowBand):
             logTuple = self._PastPricesArray[-(int(self.strategyParams['varianceLookBack']) + 1):]
@@ -254,7 +255,8 @@ class ImRobot:
 
     def _trading_loop(self):
         # Waiting until we can open a trade
-        while not self._inPosition:
+        COMPLETE = False
+        while (not self._inPosition) and (not COMPLETE):
             self._collect_new_price()
             if DEBUG:
                 # print('WaitOpenLast:', self._PastPricesArray[-1])
@@ -263,30 +265,54 @@ class ImRobot:
             openAbility = self._open_trade_ability()
             if isinstance(openAbility, dict):
                 if DEBUG:
+                    print('=====')
                     print(openAbility)
+                    print('=====')
                 # self.connector.place_order({self.SAXO: openAbility['position']})
-                self.connector.place_order({self.SAXO: openAbility['position']}, order_type='limit',
-                                           order_price=openAbility['openPrice'])
+                orderID = self.connector.place_order({self.SAXO: openAbility['position']}, order_type='limit',
+                                                     order_price=openAbility['openPrice'])['OrderId']
                 # print(self.connector.get_actual_data([self.SAXO], mode='all'))
-                self._inPosition = True
-                self.tradingTimer.start()
+                orderIDminute = datetime.datetime.now().minute
+                while (orderIDminute == datetime.datetime.now().minute) and (not self._inPosition):
+                    time.sleep(1)
+                    orderStatus = self.connector.check_order(orderID)
+                    if not orderStatus:
+                        self._inPosition = True
+                        COMPLETE = True
+                        self.tradingTimer.start()
+                if not COMPLETE:
+                    self.connector.cancelOrder(orderID)
             time.sleep(self.time_interval)
 
         self._positionDetails = openAbility
         # REPLACE
         self.waitingToFatMean = False
-        while self._inPosition:
+        COMPLETE = False
+        while (self._inPosition) and (not COMPLETE):
             self._collect_new_price()
             if DEBUG:
                 # print('WaitCloseLast:', self._PastPricesArray[-1])
                 pass
             closeAbility = self._close_trade_ability()
             if isinstance(closeAbility, dict):
+                if DEBUG:
+                    print('====')
+                    print(closeAbility)
+                    print('====')
                 # self.connector.place_order({self.SAXO: -1 * openAbility['position']})
-                self.connector.place_order({self.SAXO: -1 * openAbility['position']}, order_type='limit',
-                                           order_price=closeAbility['closePrice'])
-                self._inPosition = False
-                self.tradingTimer.stop()
+                orderID = self.connector.place_order({self.SAXO: -1 * openAbility['position']}, order_type='limit',
+                                                     order_price=closeAbility['closePrice'])['OrderId']
+                orderIDminute = datetime.datetime.now().minute
+                while (orderIDminute == datetime.datetime.now().minute) and (self._inPosition is True):
+                    time.sleep(1)
+                    orderStatus = self.connector.check_order(orderID)
+                    if not orderStatus:
+                        self._inPosition = False
+                        COMPLETE = True
+                        self.tradingTimer.stop()
+                        break
+                if not COMPLETE:
+                    self.connector.cancelOrder(orderID)
             time.sleep(self.time_interval)
 
         _stat = {**openAbility, **closeAbility}

@@ -101,7 +101,6 @@ class SaxoOrderInterface(AbstractOrderInterface):
         r = tr.infoprices.InfoPrices(params)
         # combine two lists in one dict:
         answer = dict(zip(list_tickers, self._client.request(r)['Data']))
-        print(answer)
         if mode == 'midPrice':
             return answer[list_tickers[0]]['Quote']['Mid']
         if mode == 'bidPrice':
@@ -128,6 +127,7 @@ class SaxoOrderInterface(AbstractOrderInterface):
                 r = tr.orders.Order(data=order)
                 rv = self._client.request(r)
                 print(f'{ticket} amount {amount}: {rv}')
+                return rv
             except Exception as error:
                 print(f'{ticket}: {error}')
             time.sleep(1)
@@ -271,7 +271,7 @@ class SaxoOrderInterface(AbstractOrderInterface):
         Checking order existing. If exist then return True, else False
         '''
         r = pf.orders.GetOpenOrder(ClientKey=self._ClientKey, OrderId=order_id, params={})
-        client.request(r)
+        self._client.request(r)
         rv = r.response['Data']
         if len(rv) == 0:
             return False
@@ -305,3 +305,6 @@ class SaxoOrderInterface(AbstractOrderInterface):
         url = f"https://gateway.saxobank.com/sim/openapi/ref/v1/currencypairs/?AccountKey={self._AccountKey}&ClientKey={self._ClientKey}"
         print('saxoDEV', self._client.OWNREQUEST(method='get', url=url, request_args={}))
 
+    def cancelOrder(self, orderId):
+        url = f"https://gateway.saxobank.com/sim/openapi/trade/v2/orders/{orderId}/?AccountKey={self._AccountKey}"
+        self._client.OWNREQUEST(method='delete', url=url, request_args={})
