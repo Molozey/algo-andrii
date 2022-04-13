@@ -101,6 +101,7 @@ class SaxoOrderInterface(AbstractOrderInterface):
         r = tr.infoprices.InfoPrices(params)
         # combine two lists in one dict:
         answer = dict(zip(list_tickers, self._client.request(r)['Data']))
+        print(answer)
         if mode == 'midPrice':
             return answer[list_tickers[0]]['Quote']['Mid']
         if mode == 'bidPrice':

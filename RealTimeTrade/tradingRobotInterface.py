@@ -12,6 +12,7 @@ from utils.statCollectorModule import PandasStatCollector
 from utils.historicalSimulateCollector import *
 from utils.connectorInterface import SaxoOrderInterface
 
+global DEBUG
 
 class ImRobot:
     def __init__(self, name, config_file_way, strategyParameters_file_way, tickerSaxo, tickerEOD):
@@ -65,7 +66,7 @@ class ImRobot:
         del shiftedTime, actualTime
 
     def _collect_new_price(self):
-        newPrice = self.connector.get_actual_data([self.SAXO])
+        newPrice = self.connector.get_actual_data([self.SAXO], mode='bidPrice')
         self._PastPricesArray.append(newPrice)
 
     def add_timer(self, timer, tradingTimer):
@@ -88,7 +89,7 @@ class ImRobot:
             'takeProfitBorder': None
         }
         half_time = int(get_half_time(pd.Series(self._PastPricesArray[-int(self.strategyParams['scanHalfTime']):])))
-        if (half_time > self.strategyParams['scanHalfTime']) or (half_time < 0):
+        if (half_time > self.strategyParams['scanHalfTime']) or (half_time < 2):
             return False
         self.strategyParams["rollingMean"] = int(half_time * self.strategyParams['halfToLight'])
         self.strategyParams["fatRollingMean"] = int(self.strategyParams['halfToFat'] * half_time)
@@ -101,14 +102,17 @@ class ImRobot:
                                                            self.strategyParams['halfToFat']) //
                                                           self.strategyParams['varianceRatioCarreteParameter']) + 1
 
-        workingArray = self._PastPricesArray[-int(self.strategyParams['scanHalfTime']):]
+        workingArray = self._PastPricesArray[-int(half_time):]
         bandMean = np.mean(workingArray)
         bandStd = np.std(workingArray)
 
         lowBand = round(bandMean - bandStd * self.strategyParams['yThreshold'], 3)
         highBand = round(bandMean + bandStd * self.strategyParams['yThreshold'], 3)
+        if DEBUG:
+            print(self._PastPricesArray[-half_time:])
+            print(f"actualPrice:{workingArray[-1]} highBand:{highBand} lowBand:{lowBand} scanHalfTime:{half_time}")
 
-        if workingArray[-1] < lowBand:
+        if (workingArray[-2] > lowBand) and (workingArray[-1] < lowBand):
             logTuple = self._PastPricesArray[-(int(self.strategyParams['varianceLookBack']) + 1):]
             retTuple = np.diff(logTuple)
             logTuple = logTuple[1:]
@@ -125,7 +129,7 @@ class ImRobot:
 
                 return openDict
 
-        if workingArray[-1] > highBand:
+        if (workingArray[-2] < highBand) and (workingArray[-1] > highBand):
             logTuple = self._PastPricesArray[-(int(self.strategyParams['varianceLookBack']) + 1):]
             retTuple = np.diff(logTuple)
             logTuple = logTuple[1:]
@@ -147,8 +151,7 @@ class ImRobot:
     def _close_trade_ability(self):
 
         if (self.tradingTimer.elapsed() // 60) > self.strategyParams['timeBarrier']:
-            return {'typeHolding': 'endPeriod', 'closePrice': None,
-                    'closeIndex': None}
+            return {'typeHolding': 'endPeriod', 'closePrice': self._PastPricesArray[-1]}
 
         if self._positionDetails['typeOperation'] == 'BUY':
             if self._PastPricesArray[-1] < self._positionDetails['stopLossBorder']:
@@ -165,7 +168,7 @@ class ImRobot:
                 workingArray = self._PastPricesArray[-int(self.strategyParams['rollingMean']):]
                 bandMean = np.mean(workingArray)
                 MeanFat = np.mean(self._PastPricesArray[-int(self.strategyParams['fatRollingMean']):])
-                if self._PastPricesArray[-1] > bandMean:
+                if (self._PastPricesArray[-1] > bandMean) and (self._PastPricesArray[-2] < bandMean):
                     _log = self._PastPricesArray[-(int(max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean']))+1):]
                     compute = {
                         "retOpenPrice": np.diff(_log),
@@ -211,7 +214,7 @@ class ImRobot:
                 workingArray = self._PastPricesArray[-int(self.strategyParams['rollingMean']):]
                 bandMean = np.mean(workingArray)
                 MeanFat = np.mean(self._PastPricesArray[-int(self.strategyParams['fatRollingMean']):])
-                if self._PastPricesArray[-1] < bandMean:
+                if (self._PastPricesArray[-1] < bandMean) and (self._PastPricesArray[-2] > bandMean):
                     _log = self._PastPricesArray[-(int(
                         max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
                     compute = {
@@ -253,13 +256,17 @@ class ImRobot:
         # Waiting until we can open a trade
         while not self._inPosition:
             self._collect_new_price()
-            # print('WaitOpenLast:', self._PastPricesArray[-1])
+            if DEBUG:
+                # print('WaitOpenLast:', self._PastPricesArray[-1])
+                # print('WaitOpenLast:', self._PastPricesArray[-10:])
+                pass
             openAbility = self._open_trade_ability()
             if isinstance(openAbility, dict):
-                print(openAbility)
-                self.connector.place_order({self.SAXO: openAbility['position']})
-                # self.connector.place_order({self.SAXO: openAbility['position']}, order_type='limit',
-                #                            order_price=openAbility['openPrice'])
+                if DEBUG:
+                    print(openAbility)
+                # self.connector.place_order({self.SAXO: openAbility['position']})
+                self.connector.place_order({self.SAXO: openAbility['position']}, order_type='limit',
+                                           order_price=openAbility['openPrice'])
                 # print(self.connector.get_actual_data([self.SAXO], mode='all'))
                 self._inPosition = True
                 self.tradingTimer.start()
@@ -270,13 +277,14 @@ class ImRobot:
         self.waitingToFatMean = False
         while self._inPosition:
             self._collect_new_price()
-            # print('WaitCloseLast:', self._PastPricesArray[-1])
+            if DEBUG:
+                # print('WaitCloseLast:', self._PastPricesArray[-1])
+                pass
             closeAbility = self._close_trade_ability()
-            print('CA', closeAbility)
             if isinstance(closeAbility, dict):
-                self.connector.place_order({self.SAXO: -1 * openAbility['position']})
-                # self.connector.place_order({self.SAXO: -1 * openAbility['position']}, order_type='limit',
-                #                            order_price=openAbility['openPrice'])
+                # self.connector.place_order({self.SAXO: -1 * openAbility['position']})
+                self.connector.place_order({self.SAXO: -1 * openAbility['position']}, order_type='limit',
+                                           order_price=closeAbility['closePrice'])
                 self._inPosition = False
                 self.tradingTimer.stop()
             time.sleep(self.time_interval)
@@ -330,7 +338,9 @@ monkeyRobot.add_timer(timerGlobal, timerTrade)
 monkeyRobot.add_statistics_collector(pandasCollector)
 monkeyRobot.add_connector(connector)
 
+DEBUG = True
 monkeyRobot.start_tradingCycle()
 
-
+# monkeyRobot.connector.place_order({monkeyRobot.SAXO: 100_000}, order_type='market')
+# monkeyRobot.connector.get_actual_data(['CHFJPY'])
 # monkeyRobot.connector.stop_order(ticker='CHFJPY', amount=400000)

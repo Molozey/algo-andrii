@@ -147,5 +147,8 @@ def reverse_variance_ratio(preComputed, params: dict, timeBorderCounter: int, VR
     except ZeroDivisionError:
         print('Warning at variance ratio. Division on zero')
         return False
+    except:
+        print(preComputed)
+        return False
 
 
