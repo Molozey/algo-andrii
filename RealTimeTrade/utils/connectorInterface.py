@@ -265,6 +265,15 @@ class SaxoOrderInterface(AbstractOrderInterface):
             dict_positions[ticker_type_asset[0]] = potision_info
         dict_positions['amount_positions'] = rv['__count']
         return dict_positions
+    
+    def check_order(order_id):
+        r = pf.orders.GetOpenOrder(ClientKey=client_key, OrderId=order_id, params={})
+        client.request(r)
+        rv = r.response['Data']
+        if len(rv) == 0:
+            return False
+        else:
+            return True
 
     def alternative_get_asset_data_hist(self, symbol, interval=None, from_='1000-01-01', to=str(datetime.date.today()), api_token='5f75d2d79bbbb4.84214003'):
         # idditioal information: https://eodhistoricaldata.com/financial-apis/list-supported-forex-currencies/
