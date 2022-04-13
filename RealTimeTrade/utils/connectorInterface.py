@@ -44,8 +44,8 @@ class AbstractOrderInterface:
 
 
 class SaxoOrderInterface(AbstractOrderInterface):
-    def __init__(self):
-        self._token = "eyJhbGciOiJFUzI1NiIsIng1dCI6IkRFNDc0QUQ1Q0NGRUFFRTlDRThCRDQ3ODlFRTZDOTEyRjVCM0UzOTQifQ.eyJvYWEiOiI3Nzc3NSIsImlzcyI6Im9hIiwiYWlkIjoiMTA5IiwidWlkIjoiNGFOUTNBSE41TnRDUmJ8UjNkNy1hdz09IiwiY2lkIjoiNGFOUTNBSE41TnRDUmJ8UjNkNy1hdz09IiwiaXNhIjoiRmFsc2UiLCJ0aWQiOiIyMDAyIiwic2lkIjoiNjYzNDhkMGM2ZDRhNDk1ZmE4MjM0OTg3NzA1OTMwOTYiLCJkZ2kiOiI4NCIsImV4cCI6IjE2NDk4NzUzMTAiLCJvYWwiOiIxRiJ9.Y2XBiNQH6FqifSqmfLejDRHF6QzJavYWj86Ub5wdVKMnTB_FdTeJd4cU5CcZEQtl8UHaj_x3Ea0RsXq-SwYl0Q"
+    def __init__(self, token):
+        self._token = token
 
         self._client = API(access_token=self._token)
         self._AccountKey = account_info(self._client).AccountKey

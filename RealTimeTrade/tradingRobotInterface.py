@@ -112,8 +112,13 @@ class ImRobot:
             # print(self._PastPricesArray[-half_time:])
             # print(f"actualPrice:{workingArray[-1]} highBand:{highBand} lowBand:{lowBand} scanHalfTime:{half_time}")
             pass
+        lastPrice = pd.Series(self.connector.get_asset_data_hist(self.SAXO, 1, 1)[0])
+        LASTWAY = 'DUMP'
+        if lastPrice['CloseBid'] > lastPrice['OpenBid']:
+            LASTWAY = 'PUMP'
 
         if (workingArray[-2] > lowBand) and (workingArray[-1] < lowBand):
+        # if (LASTWAY == 'DUMP') and (lastPrice['OpenBid'] > lowBand) and (lastPrice['CloseBid'] < lowBand) and (workingArray[-1] < lowBand):
             logTuple = self._PastPricesArray[-(int(self.strategyParams['varianceLookBack']) + 1):]
             retTuple = np.diff(logTuple)
             logTuple = logTuple[1:]
@@ -131,6 +136,7 @@ class ImRobot:
                 return openDict
 
         if (workingArray[-2] < highBand) and (workingArray[-1] > highBand):
+        # if (LASTWAY == 'PUMP') and (lastPrice['CloseBid'] > highBand) and (lastPrice['OpenBid'] < highBand) and (workingArray[-1] > highBand):
             logTuple = self._PastPricesArray[-(int(self.strategyParams['varianceLookBack']) + 1):]
             retTuple = np.diff(logTuple)
             logTuple = logTuple[1:]
@@ -335,6 +341,7 @@ class ImRobot:
         self.timer.start()
         while initMinute == datetime.datetime.now().minute:
             time.sleep(0.05)
+            break
             continue
 
         while True:
@@ -355,8 +362,16 @@ timerGlobal = Timer()
 timerTrade = Timer()
 
 # connector = SimulatedOrderGenerator("dataForGenerator.csv")
+with open("token.txt", 'r') as f:
+    tokenContent = f.readline()[:-1]
+    print(tokenContent)
+    tokenLife = f.readline()
+    tokenLife = datetime.datetime.fromisoformat(tokenLife)
+    if ((datetime.datetime.now() - tokenLife).total_seconds() // 60 // 60) > 22:
+        print('Token will expire soon')
 
-connector = SaxoOrderInterface()
+
+connector = SaxoOrderInterface(token=tokenContent)
 pandasCollector = PandasStatCollector("stat.csv")
 #
 #
