@@ -266,8 +266,11 @@ class SaxoOrderInterface(AbstractOrderInterface):
         dict_positions['amount_positions'] = rv['__count']
         return dict_positions
     
-    def check_order(order_id):
-        r = pf.orders.GetOpenOrder(ClientKey=client_key, OrderId=order_id, params={})
+    def check_order(self, order_id):
+        '''
+        Checking order existing. If exist then return True, else False
+        '''
+        r = pf.orders.GetOpenOrder(ClientKey=self._ClientKey, OrderId=order_id, params={})
         client.request(r)
         rv = r.response['Data']
         if len(rv) == 0:
