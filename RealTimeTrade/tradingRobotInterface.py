@@ -343,6 +343,16 @@ class ImRobot:
 
         while True:
             # print('Last Price in Slicer:', self._PastPricesArray[-1])
+            if (self.timerToken.elapsed() // 3600) > 3:
+                with open("token.txt", 'r') as f:
+                    tokenContent = f.readline()[:-1]
+                    print(tokenContent)
+                    tokenLife = f.readline()
+                    tokenLife = datetime.datetime.fromisoformat(tokenLife)
+                    if ((datetime.datetime.now() - tokenLife).total_seconds() // 60 // 60) > 22:
+                        print('Token will expire soon')
+                self.timerToken.stop()
+                self.timerToken.start()
 
             self.strategyParams = create_strategy_config(self._initStrategyParams, CAP=self._tradeCapital)
             self._trading_loop()
