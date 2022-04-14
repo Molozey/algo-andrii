@@ -51,3 +51,12 @@ class PandasStatCollector(StatCollector):
             file.reset_index(drop=True, inplace=True)
             file.to_csv(f"{self._filePath}", sep=self._sep)
             return None
+
+
+class BQueryCollector(StatCollector):
+    def __init__(self):
+        super().__init__()
+        pass
+
+    def add_trade_line(self, line):
+        pass

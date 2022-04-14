@@ -122,6 +122,10 @@ def get_half_time(openTuple: pd.Series) -> float:
     Функция отдающая период полураспада
     :param openTuple:
     :return:
+    [MEAN REVERSION | MEAN REVERSION | TREND FOLLOOWING | MEAB REVERSIOn | TREND FOLLOWNING]
+    [MEAN REVERSION | TREND FOLLOOWING | MEAB REVERSIOn | TREND FOLLOWNING]
+    [OOWING | MEAB REVERSIOn | TREND FOLLOWNING]
+    [IOn | TREND FOLLOWNING]
     """
     df_open = openTuple.to_frame()
     df_lag = df_open.shift(1)

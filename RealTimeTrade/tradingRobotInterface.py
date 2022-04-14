@@ -22,6 +22,7 @@ class ImRobot:
         :param config_file_way: Path to config txt
         :param strategyParameters_file_way: Path to strategy hyperparams file
         """
+        self.timerToken = None
 
         self.name = name
         self._tradeCapital = 100_000_0
@@ -113,12 +114,8 @@ class ImRobot:
             # print(f"actualPrice:{workingArray[-1]} highBand:{highBand} lowBand:{lowBand} scanHalfTime:{half_time}")
             pass
         lastPrice = pd.Series(self.connector.get_asset_data_hist(self.SAXO, 1, 1)[0])
-        LASTWAY = 'DUMP'
-        if lastPrice['CloseBid'] > lastPrice['OpenBid']:
-            LASTWAY = 'PUMP'
-
-        if (workingArray[-2] > lowBand) and (workingArray[-1] < lowBand):
-        # if (LASTWAY == 'DUMP') and (lastPrice['OpenBid'] > lowBand) and (lastPrice['CloseBid'] < lowBand) and (workingArray[-1] < lowBand):
+        # if (workingArray[-2] > lowBand) and (workingArray[-1] < lowBand):
+        if (lastPrice['OpenBid'] > lowBand) and (lastPrice['CloseBid'] < lowBand) and (workingArray[-1] < lowBand):
             logTuple = self._PastPricesArray[-(int(self.strategyParams['varianceLookBack']) + 1):]
             retTuple = np.diff(logTuple)
             logTuple = logTuple[1:]
@@ -135,8 +132,8 @@ class ImRobot:
 
                 return openDict
 
-        if (workingArray[-2] < highBand) and (workingArray[-1] > highBand):
-        # if (LASTWAY == 'PUMP') and (lastPrice['CloseBid'] > highBand) and (lastPrice['OpenBid'] < highBand) and (workingArray[-1] > highBand):
+        # if (workingArray[-2] < highBand) and (workingArray[-1] > highBand):
+        if (lastPrice['CloseBid'] > highBand) and (lastPrice['OpenBid'] < highBand) and (workingArray[-1] > highBand):
             logTuple = self._PastPricesArray[-(int(self.strategyParams['varianceLookBack']) + 1):]
             retTuple = np.diff(logTuple)
             logTuple = logTuple[1:]
@@ -327,6 +324,7 @@ class ImRobot:
         self.statCollector.add_trade_line(_stat)
         time.sleep(self.time_interval)
 
+
     def start_tradingCycle(self):
         self._collect_past_prices()
         initMinute = datetime.datetime.now().minute
@@ -341,11 +339,11 @@ class ImRobot:
         self.timer.start()
         while initMinute == datetime.datetime.now().minute:
             time.sleep(0.05)
-            break
             continue
 
         while True:
             # print('Last Price in Slicer:', self._PastPricesArray[-1])
+
             self.strategyParams = create_strategy_config(self._initStrategyParams, CAP=self._tradeCapital)
             self._trading_loop()
 
@@ -360,6 +358,9 @@ monkeyRobot = ImRobot('MNKY', config_file_way="robotConfig.txt", strategyParamet
 
 timerGlobal = Timer()
 timerTrade = Timer()
+tokenTimer = Timer()
+
+monkeyRobot.timerToken = tokenTimer
 
 # connector = SimulatedOrderGenerator("dataForGenerator.csv")
 with open("token.txt", 'r') as f:
@@ -379,7 +380,8 @@ monkeyRobot.add_timer(timerGlobal, timerTrade)
 monkeyRobot.add_statistics_collector(pandasCollector)
 monkeyRobot.add_connector(connector)
 
-DEBUG = True
+DEBUG = False
+
 monkeyRobot.start_tradingCycle()
 
 # monkeyRobot.connector.place_order({monkeyRobot.SAXO: 100_000}, order_type='market')
