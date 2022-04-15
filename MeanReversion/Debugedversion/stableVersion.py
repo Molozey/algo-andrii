@@ -514,8 +514,7 @@ def _collectTrades(initPOS, SL, coll_DATAFRAME, leftShift, rightShift, openShift
 
 
         openDict = openPosition['openDict']
-        ['position', 'openPrice']
-        order = tie_account_to_order(AccountKey, MarketOrderFxSpot(Uic=19, Amount=openDict['position']))
+        # order = tie_account_to_order(AccountKey, MarketOrderFxSpot(Uic=19, Amount=openDict['position']))
 
         openDict['openIndex'] = openDict['openIndex'] - openShift + POS
         POS = openDict['openIndex'] + 1
@@ -556,13 +555,12 @@ def _collectTrades(initPOS, SL, coll_DATAFRAME, leftShift, rightShift, openShift
 
 
         closeDict = closePosition
-        ['price', 'typeClosing']
         # print(closeDict)
         closeDict['closeIndex'] = closeDict['closeIndex'] - closeShift + POS
         POS = closeDict['closeIndex'] + 1
 
-        order = tie_account_to_order(AccountKey, StopOrderFxSpot(Uic=19, Amount=openDict['position'],
-                                                                 OrderPrice=closeDict['closePrice']))
+        # order = tie_account_to_order(AccountKey, StopOrderFxSpot(Uic=19, Amount=openDict['position'],
+        #                                                          OrderPrice=closeDict['closePrice']))
 
         if closeDict['typeHolding'] == 'stopLoss':
             POS += int(localParameters['restAfterLoss'])

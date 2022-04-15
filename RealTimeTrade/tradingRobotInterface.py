@@ -123,7 +123,8 @@ class ImRobot:
 
             if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
                 openDict['typeOperation'] = 'BUY'
-                openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                openDict['position'] = int(round(self._tradeCapital))
                 openDict['openPrice'] = lowBand
                 openDict['openTime'] = self.timer.elapsed()
                 openDict['stopLossBorder'] = round(lowBand - self.strategyParams['stopLossStdMultiplier'] * bandStd, 3)
@@ -141,7 +142,8 @@ class ImRobot:
 
             if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
                 openDict['typeOperation'] = 'SELL'
-                openDict['position'] = int(-1 * round(self._tradeCapital / highBand, 3))
+                # openDict['position'] = int(-1 * round(self._tradeCapital / highBand, 3))
+                openDict['position'] = -1 * int(round(self._tradeCapital))
                 openDict['openPrice'] = highBand
                 openDict['openTime'] = self.timer.elapsed()
                 openDict['stopLossBorder'] = round(highBand - self.strategyParams['stopLossStdMultiplier'] * bandStd, 3)
@@ -392,7 +394,9 @@ monkeyRobot.add_connector(connector)
 
 DEBUG = False
 
+monkeyRobot.timerToken.start()
 monkeyRobot.start_tradingCycle()
+# monkeyRobot.connector.place_order({'CHFJPY': monkeyRobot._tradeCapital})
 
 # monkeyRobot.connector.place_order({monkeyRobot.SAXO: 100_000}, order_type='market')
 # monkeyRobot.connector.get_actual_data(['CHFJPY'])
