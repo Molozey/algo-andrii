@@ -1,3 +1,4 @@
 updateTime:60
+waitingParameter: 10
 reference:23
 apiToken:

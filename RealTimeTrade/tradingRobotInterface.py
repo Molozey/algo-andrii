@@ -25,7 +25,7 @@ class ImRobot:
         self.timerToken = None
 
         self.name = name
-        self._tradeCapital = 100_000_0
+        self._tradeCapital = 100_000
         config = pd.read_csv(str(config_file_way), header=None, index_col=0, sep=':')
         self.time_interval = int(config.loc['updateTime'])
         del config
@@ -110,9 +110,12 @@ class ImRobot:
         lowBand = round(bandMean - bandStd * self.strategyParams['yThreshold'], 3)
         highBand = round(bandMean + bandStd * self.strategyParams['yThreshold'], 3)
         if DEBUG:
-            # print(self._PastPricesArray[-half_time:])
-            # print(f"actualPrice:{workingArray[-1]} highBand:{highBand} lowBand:{lowBand} scanHalfTime:{half_time}")
-            pass
+            logTuple = self._PastPricesArray[-(int(self.strategyParams['varianceLookBack']) + 1):]
+            retTuple = np.diff(logTuple)
+            logTuple = logTuple[1:]
+            assert len(retTuple) == len(logTuple)
+            print(f"actualPrice:{workingArray[-1]} highBand:{highBand} lowBand:{lowBand} HalfTime:{half_time} VR = {variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams)}")
+
         lastPrice = pd.Series(self.connector.get_asset_data_hist(self.SAXO, 1, 1)[0])
         # if (workingArray[-2] > lowBand) and (workingArray[-1] < lowBand):
         if (lastPrice['OpenBid'] > lowBand) and (lastPrice['CloseBid'] < lowBand) and (workingArray[-1] < lowBand):
@@ -130,7 +133,9 @@ class ImRobot:
                 openDict['stopLossBorder'] = round(lowBand - self.strategyParams['stopLossStdMultiplier'] * bandStd, 3)
                 openDict['takeProfitBorder'] = round(lowBand +
                                                      self.strategyParams['takeProfitStdMultiplier'] * bandStd, 3)
-
+                if DEBUG:
+                    print(f"""BUY position, bandMean={bandMean}, bandStd={bandStd}, lastPrice={lastPrice}, 
+                    halfTime={half_time}, lowB={lowBand} highB={highBand} StopL = {openDict['stopLossBorder']}""")
                 return openDict
 
         # if (workingArray[-2] < highBand) and (workingArray[-1] > highBand):
@@ -150,6 +155,9 @@ class ImRobot:
                 openDict['takeProfitBorder'] = round(highBand +
                                                      self.strategyParams['takeProfitStdMultiplier'] * bandStd, 3)
 
+                if DEBUG:
+                    print(f"""SELL position, bandMean={bandMean}, bandStd={bandStd}, lastPrice={lastPrice}, 
+                    halfTime={half_time}, lowB={lowBand} highB={highBand} StopL = {openDict['stopLossBorder']}""")
                 return openDict
 
         return False
@@ -161,6 +169,8 @@ class ImRobot:
 
         if self._positionDetails['typeOperation'] == 'BUY':
             if self._PastPricesArray[-1] < self._positionDetails['stopLossBorder']:
+                if DEBUG:
+                    print(f"Stop loss, price={self._PastPricesArray[-1]}, stopLoss = {self._positionDetails['stopLossBorder']}")
                 return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArray[-1]}
             # Block with Trailing StopLoss. This realization is not good. Need to change
             delta = self._PastPricesArray[-1] - self._PastPricesArray[-2]
@@ -168,6 +178,8 @@ class ImRobot:
                 self._positionDetails['stopLossBorder'] = round(self._positionDetails['stopLossBorder'] + delta, 3)
 
             if self._PastPricesArray[-1] < self._positionDetails['stopLossBorder']:
+                if DEBUG:
+                    print(f"Stop loss after upper level, price={self._PastPricesArray[-1]}, stopLoss = {self._positionDetails['stopLossBorder']}")
                 return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArray[-1]}
 
             if not self.waitingToFatMean:
@@ -270,7 +282,6 @@ class ImRobot:
             openAbility = self._open_trade_ability()
             if isinstance(openAbility, dict):
                 if DEBUG:
-                    print('=====')
                     print(openAbility)
                     print('=====')
                 # self.connector.place_order({self.SAXO: openAbility['position']})
@@ -392,10 +403,14 @@ monkeyRobot.add_timer(timerGlobal, timerTrade)
 monkeyRobot.add_statistics_collector(pandasCollector)
 monkeyRobot.add_connector(connector)
 
-DEBUG = False
+DEBUG = True
 
 monkeyRobot.timerToken.start()
-monkeyRobot.start_tradingCycle()
+# monkeyRobot.start_tradingCycle()
+# monkeyRobot.connector.place_order({'CHFJPY': 100_000}, order_type='limit', order_price=134.312)
+lastPrice = pd.Series(monkeyRobot.connector.get_asset_data_hist(monkeyRobot.SAXO, 1, 1)[0])
+print(lastPrice)
+# monkeyRobot.connector.place_order({'CHFJPY': -100_000}, order_type='market')
 # monkeyRobot.connector.place_order({'CHFJPY': monkeyRobot._tradeCapital})
 
 # monkeyRobot.connector.place_order({monkeyRobot.SAXO: 100_000}, order_type='market')
