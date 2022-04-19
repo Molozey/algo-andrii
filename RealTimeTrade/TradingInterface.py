@@ -109,12 +109,13 @@ class TradingInterface:
         self.notificator = notificator
         if self.updatableToken:
             self.threadWithTokenUpdatable = Thread(target=self.notificator.token_request_echo,
-                                              args=(self.notificator, self)).start()
+                                                   args=(self.notificator, self)).start()
 
     def update_token_information(self, token: str, updateDate: datetime.datetime):
         self._robotConfig['apiToken'] = token
         self._robotConfig['lastApiTokenUpdate'] = updateDate
         self._robotConfig.to_csv(self._configPath, header=None)
+        self.brokerInterface._token = token
 
     def add_strategy(self, strategy: availableStrategies):
         self.strategy = strategy
@@ -195,6 +196,8 @@ monkey = TradingInterface(name='monkey', robotConfig='robotConfig.txt',
 monkey.add_broker_interface(SaxoOrderInterface(monkey.get_token))
 # add telegram notificator
 monkey.add_fast_notificator(TelegramNotification())
+# add strategy rules
+monkey.add_strategy(MeanReversionDual())
 
 # monkey.download_history_data(60, 100)
 # monkey.download_actual_dot(60, 1)

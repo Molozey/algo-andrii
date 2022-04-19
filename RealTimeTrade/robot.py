@@ -27,9 +27,11 @@ class ImRobot:
         self.name = name
         self._tradeCapital = 100_000
         try:
-            config = pd.read_csv(str(config_file_way), header=None, index_col=0, sep=':')
-            self.time_interval = int(config.loc['updateTime'])
-            self.crossingMaxTime = int(config.loc['waitingParameter'])
+            config = pd.read_csv(config_file_way, header=None).T
+            config = pd.Series(data=config.iloc[1, :].values,
+                                          index=config.iloc[0, :])
+            self.time_interval = int(config['updateDataTime'])
+            self.crossingMaxTime = int(config['waitingParameter'])
             del config
         except KeyError:
             print('Unknown keys in config')
@@ -75,7 +77,7 @@ class ImRobot:
 
     def _collect_past_prices(self):
         # We need at least self._initStrategyParams.scanHalfTime
-        historicalData = self.connector.get_asset_data_hist(self.SAXO, 1,
+        historicalData = self.connector.get_asset_data_hist(self.SAXO, 60,
                                                             int(min(self._initStrategyParams["scanHalfTime"], 1200)))
         historicalData = pd.DataFrame(historicalData)
         self._PastPricesArrayAsk = list(historicalData.apply(lambda x: x["OpenAsk"], axis=1).values)
@@ -88,7 +90,7 @@ class ImRobot:
             print(f"Last time in historical:", historicalData.iloc[-1]['Time'])
 
     def _collect_new_price(self):
-        newPrice = self.connector.get_asset_data_hist(self.SAXO, 1, 1)
+        newPrice = self.connector.get_asset_data_hist(self.SAXO, 60, 1)
         newPrice = pd.DataFrame(newPrice)
         self._PastPricesArrayAsk.append(newPrice.apply(lambda x: x["OpenAsk"], axis=1).values[0])
         self._PastPricesArrayBid.append(newPrice.apply(lambda x: x["OpenBid"], axis=1).values[0])
@@ -103,7 +105,7 @@ class ImRobot:
                 get_half_time(pd.Series(self._PastPricesArrayMiddle[-int(self.strategyParams['scanHalfTime']):])))
 
             #
-            half_time = 80
+            # half_time = 80
             #
 
             self.strategyParams["rollingMean"] = int(half_time * self.strategyParams['halfToLight'])
@@ -149,7 +151,7 @@ class ImRobot:
                 get_half_time(pd.Series(self._PastPricesArrayMiddle[-int(self.strategyParams['scanHalfTime']):])))
 
             #
-            half_time = 80
+            # half_time = 80
             #
 
             self.strategyParams["rollingMean"] = int(half_time * self.strategyParams['halfToLight'])
@@ -785,7 +787,7 @@ monkeyRobot.add_connector(connector)
 
 DEBUG = True
 
-print(pd.DataFrame(monkeyRobot.connector.get_asset_data_hist(ticker='CHFJPY', density=1, amount_intervals=1000)).columns)
+print(pd.DataFrame(monkeyRobot.connector.get_asset_data_hist(ticker='CHFJPY', density=60, amount_intervals=1000)).columns)
 # monkeyRobot.timerToken.start()
 # monkeyRobot.start_tradingCycle()
 # monkeyRobot.connector.place_order({'CHFJPY': 100_000}, order_type='limit', order_price=134.312)
