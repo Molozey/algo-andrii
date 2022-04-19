@@ -26,10 +26,13 @@ class ImRobot:
 
         self.name = name
         self._tradeCapital = 100_000
-        config = pd.read_csv(str(config_file_way), header=None, index_col=0, sep=':')
-        self.time_interval = int(config.loc['updateTime'])
-        self.crossingMaxTime = int(config.loc['waitingParameter'])
-        del config
+        try:
+            config = pd.read_csv(str(config_file_way), header=None, index_col=0, sep=':')
+            self.time_interval = int(config.loc['updateTime'])
+            self.crossingMaxTime = int(config.loc['waitingParameter'])
+            del config
+        except KeyError:
+            print('Unknown keys in config')
 
         self._initStrategyParams = pd.read_csv(strategyParameters_file_way, header=None).T
         self._initStrategyParams = pd.Series(data=self._initStrategyParams.iloc[1, :].values,
@@ -782,8 +785,9 @@ monkeyRobot.add_connector(connector)
 
 DEBUG = True
 
-monkeyRobot.timerToken.start()
-monkeyRobot.start_tradingCycle()
+print(pd.DataFrame(monkeyRobot.connector.get_asset_data_hist(ticker='CHFJPY', density=1, amount_intervals=1000)).columns)
+# monkeyRobot.timerToken.start()
+# monkeyRobot.start_tradingCycle()
 # monkeyRobot.connector.place_order({'CHFJPY': 100_000}, order_type='limit', order_price=134.312)
 
 

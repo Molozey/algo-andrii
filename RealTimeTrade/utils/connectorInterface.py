@@ -212,7 +212,7 @@ class SaxoOrderInterface(AbstractOrderInterface):
     def get_asset_data_hist(self, ticker, density, amount_intervals):
         '''
         ticker: text ("EURUSD")
-        density: int, in minutes (min 1)
+        density: int, in seconds (min 60)
         amount_intervals: int, how many historical intervals with the density (max 1200)
 
         return: a list of dicts, where one element like the next
@@ -226,6 +226,7 @@ class SaxoOrderInterface(AbstractOrderInterface):
             'OpenBid': 1.64413,
             'Time': '2022-04-07T16:17:00.000000Z'}
         '''
+        density = density // 60
         uic = list(InstrumentToUic(self._client, self._AccountKey, spec={'Instrument': ticker}).values())[0]
         params = {
                 "AssetType": "FxSpot",
