@@ -1,4 +1,4 @@
-yThreshold,5
+yThreshold,15
 varianceRatioFilter,1.0
 reverseVarianceRatioFilter,1.0
 restAfterLoss,200.0

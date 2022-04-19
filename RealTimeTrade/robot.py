@@ -48,10 +48,18 @@ class ImRobot:
 
         self._PastPricesArrayAsk = list()
         self._PastPricesArrayBid = list()
+        self._PastPricesArrayMiddle = list()
         self.SAXO = tickerSaxo
         self.EOD = tickerEOD
 
         self._introWaitingTimer = None
+        self._mode = "multiCrossing"
+        # self._mode = "singleCrossing"
+        self._BBandsMode = "Ask&Bid"
+        # self._BBandsMode="OnlyOne"
+        print("Using mode of searching in POINT:", self._mode)
+        print("Using BBandsMode", self._BBandsMode)
+
     def add_timer(self, timer, tradingTimer):
         self.timer = timer
         self.tradingTimer = tradingTimer
@@ -83,56 +91,102 @@ class ImRobot:
         self._PastPricesArrayBid.append(newPrice.apply(lambda x: x["OpenBid"], axis=1).values[0])
         self._PastPricesArrayMiddle.append(newPrice.apply(lambda x: (x["OpenBid"] + x["OpenAsk"]) / 2, axis=1).values[0])
         if DEBUG:
-            print(f"""Added new prices at time {newPrice['Time']}: Ask={self._PastPricesArrayAsk[-1]} Bid={self._PastPricesArrayBid[-1]} middle={self._PastPricesArrayMiddle[-1]}""")
+            print('Downloaded past price at time:', newPrice['Time'].values[0])
 
     def _calculate_bands(self):
         # We calculate meanReversionHalftime by middlePrice
-        half_time = int(
-            get_half_time(pd.Series(self._PastPricesArrayMiddle[-int(self.strategyParams['scanHalfTime']):])))
+        if self._BBandsMode == 'Ask&Bid':
+            half_time = int(
+                get_half_time(pd.Series(self._PastPricesArrayMiddle[-int(self.strategyParams['scanHalfTime']):])))
 
-        #
-        half_time = 240
-        #
+            #
+            half_time = 80
+            #
 
-        self.strategyParams["rollingMean"] = int(half_time * self.strategyParams['halfToLight'])
-        self.strategyParams["fatRollingMean"] = int(self.strategyParams['halfToFat'] * half_time)
-        self.strategyParams["timeBarrier"] = int(half_time * self.strategyParams['halfToTime'])
-        #
-        self.strategyParams["timeBarrier"] = 2
-        #
-        if self.strategyParams["timeBarrier"] <= 0:
-            self.strategyParams["timeBarrier"] = 1
+            self.strategyParams["rollingMean"] = int(half_time * self.strategyParams['halfToLight'])
+            self.strategyParams["fatRollingMean"] = int(self.strategyParams['halfToFat'] * half_time)
+            self.strategyParams["timeBarrier"] = int(half_time * self.strategyParams['halfToTime'])
+            #
+            self.strategyParams["timeBarrier"] = 2
+            #
+            if self.strategyParams["timeBarrier"] <= 0:
+                self.strategyParams["timeBarrier"] = 1
 
-        self.strategyParams["varianceLookBack"] = int(half_time * self.strategyParams['halfToFat'])
-        self.strategyParams["varianceRatioCarrete"] = int((half_time *
-                                                           self.strategyParams['halfToFat']) //
-                                                          self.strategyParams['varianceRatioCarreteParameter']) + 1
+            self.strategyParams["varianceLookBack"] = int(half_time * self.strategyParams['halfToFat'])
+            self.strategyParams["varianceRatioCarrete"] = int((half_time *
+                                                               self.strategyParams['halfToFat']) //
+                                                              self.strategyParams['varianceRatioCarreteParameter']) + 1
 
-        if (half_time > self.strategyParams['scanHalfTime']) or (half_time < 2):
-            if DEBUG:
-                print('Wrong HalfTime: ', half_time)
-            return False
+            if (half_time > self.strategyParams['scanHalfTime']) or (half_time < 2):
+                if DEBUG:
+                    print('Wrong HalfTime: ', half_time)
+                return False
 
-        workingAsk = self._PastPricesArrayAsk[-self.strategyParams["rollingMean"]:]
-        workingBid = self._PastPricesArrayBid[-self.strategyParams["rollingMean"]:]
+            workingAsk = self._PastPricesArrayAsk[-self.strategyParams["rollingMean"]:]
+            workingBid = self._PastPricesArrayBid[-self.strategyParams["rollingMean"]:]
 
-        meanAsk = np.mean(workingAsk)
-        meanBid = np.mean(workingBid)
+            meanAsk = np.mean(workingAsk)
+            meanBid = np.mean(workingBid)
 
-        stdAsk = np.std(workingAsk)
-        stdBid = np.std(workingBid)
+            stdAsk = np.std(workingAsk)
+            stdBid = np.std(workingBid)
 
-        lowAskBand = round(meanAsk - stdAsk * self.strategyParams['yThreshold'], 3)
-        highAskBand = round(meanAsk + stdAsk * self.strategyParams['yThreshold'], 3)
+            lowAskBand = round(meanAsk - stdAsk * self.strategyParams['yThreshold'], 3)
+            highAskBand = round(meanAsk + stdAsk * self.strategyParams['yThreshold'], 3)
 
-        lowBidBand = round(meanBid - stdBid * self.strategyParams['yThreshold'], 3)
-        highBidBand = round(meanBid + stdBid * self.strategyParams['yThreshold'], 3)
+            lowBidBand = round(meanBid - stdBid * self.strategyParams['yThreshold'], 3)
+            highBidBand = round(meanBid + stdBid * self.strategyParams['yThreshold'], 3)
 
-        dictRet = {'AskStd': stdAsk, 'BidStd': stdBid, 'lowBid': lowBidBand, 'highBid': highBidBand, 'lowAsk': lowAskBand, 'highAsk': highAskBand, 'halfTime': half_time}
-        if DEBUG:
-            print(f"New bands at moment {self.timer.elapsed()}: \n{dictRet}")
+            dictRet = {'AskStd': stdAsk, 'BidStd': stdBid, 'lowBid': lowBidBand, 'highBid': highBidBand, 'lowAsk': lowAskBand, 'highAsk': highAskBand, 'halfTime': half_time}
 
-        return dictRet
+            return dictRet
+
+        if self._mode == 'OnlyOne':
+            half_time = int(
+                get_half_time(pd.Series(self._PastPricesArrayMiddle[-int(self.strategyParams['scanHalfTime']):])))
+
+            #
+            half_time = 80
+            #
+
+            self.strategyParams["rollingMean"] = int(half_time * self.strategyParams['halfToLight'])
+            self.strategyParams["fatRollingMean"] = int(self.strategyParams['halfToFat'] * half_time)
+            self.strategyParams["timeBarrier"] = int(half_time * self.strategyParams['halfToTime'])
+            #
+            self.strategyParams["timeBarrier"] = 2
+            #
+            if self.strategyParams["timeBarrier"] <= 0:
+                self.strategyParams["timeBarrier"] = 1
+
+            self.strategyParams["varianceLookBack"] = int(half_time * self.strategyParams['halfToFat'])
+            self.strategyParams["varianceRatioCarrete"] = int((half_time *
+                                                               self.strategyParams['halfToFat']) //
+                                                              self.strategyParams['varianceRatioCarreteParameter']) + 1
+
+            if (half_time > self.strategyParams['scanHalfTime']) or (half_time < 2):
+                if DEBUG:
+                    print('Wrong HalfTime: ', half_time)
+                return False
+
+            workingAsk = self._PastPricesArrayMiddle[-self.strategyParams["rollingMean"]:]
+            workingBid = self._PastPricesArrayMiddle[-self.strategyParams["rollingMean"]:]
+
+            meanAsk = np.mean(workingAsk)
+            meanBid = np.mean(workingBid)
+
+            stdAsk = np.std(workingAsk)
+            stdBid = np.std(workingBid)
+
+            lowAskBand = round(meanAsk - stdAsk * self.strategyParams['yThreshold'], 3)
+            highAskBand = round(meanAsk + stdAsk * self.strategyParams['yThreshold'], 3)
+
+            lowBidBand = round(meanBid - stdBid * self.strategyParams['yThreshold'], 3)
+            highBidBand = round(meanBid + stdBid * self.strategyParams['yThreshold'], 3)
+
+            dictRet = {'AskStd': stdAsk, 'BidStd': stdBid, 'lowBid': lowBidBand, 'highBid': highBidBand,
+                       'lowAsk': lowAskBand, 'highAsk': highAskBand, 'halfTime': half_time}
+
+            return dictRet
 
     def _open_trade_ability(self):
         self._collect_new_price()
@@ -142,180 +196,438 @@ class ImRobot:
             self._collect_new_price()
             Bands = self._calculate_bands()
 
-        if self._PastPricesArrayBid[-1] > Bands['highAsk']:
-            if DEBUG:
-                print(f"SELL Start searching sec cross with Bid higher to highASK")
-            self._introWaitingTimer.start()
-            while (self._introWaitingTimer.elapsed() // 60) < self.crossingMaxTime:
-                time.sleep(60.5)
-                self._collect_new_price()
-                Bands = self._calculate_bands()
-                if self._PastPricesArrayBid[-1] < Bands['highAsk']:
-                    logTuple = self._PastPricesArrayBid[-(int(self.strategyParams['varianceLookBack']) + 1):]
-                    retTuple = np.diff(logTuple)
-                    logTuple = logTuple[1:]
-                    assert len(retTuple) == len(logTuple)
-                    if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
-                        openDict = dict()
-                        openDict['typeOperation'] = 'SELL'
-                        # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
-                        openDict['position'] = - int(round(self._tradeCapital))
-                        openDict['openPrice'] = Bands['highAsk']
-                        openDict['openTime'] = self.timer.elapsed()
-                        openDict['stopLossBorder'] = round(Bands['highAsk'] + self.strategyParams['stopLossStdMultiplier'] * Bands['AskStd'], 3)
-                        self._introWaitingTimer.stop()
-                        return openDict
-            if (self._introWaitingTimer.elapsed() // 60) >= self.crossingMaxTime:
-                self._introWaitingTimer.stop()
-                return 'CantOpenCrossing'
+        if (self._mode == 'multiCrossing') and (self._BBandsMode == 'Ask&Bid'):
+            if self._PastPricesArrayBid[-1] > Bands['highAsk']:
+                if DEBUG:
+                    print(f"SELL Start searching sec cross with Bid higher to highASK")
+                self._introWaitingTimer.start()
+                while (self._introWaitingTimer.elapsed() // 60) < self.crossingMaxTime:
+                    time.sleep(60.5)
+                    self._collect_new_price()
+                    Bands = self._calculate_bands()
+                    if self._PastPricesArrayBid[-1] < Bands['highAsk']:
+                        logTuple = self._PastPricesArrayBid[-(int(self.strategyParams['varianceLookBack']) + 1):]
+                        retTuple = np.diff(logTuple)
+                        logTuple = logTuple[1:]
+                        assert len(retTuple) == len(logTuple)
+                        if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                            openDict = dict()
+                            openDict['typeOperation'] = 'SELL'
+                            # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                            openDict['position'] = - int(round(self._tradeCapital))
+                            openDict['openPrice'] = Bands['highAsk']
+                            openDict['openTime'] = self.timer.elapsed()
+                            openDict['stopLossBorder'] = round(Bands['highAsk'] + self.strategyParams['stopLossStdMultiplier'] * Bands['AskStd'], 3)
+                            self._introWaitingTimer.stop()
+                            return openDict
+                if (self._introWaitingTimer.elapsed() // 60) >= self.crossingMaxTime:
+                    self._introWaitingTimer.stop()
+                    return 'CantOpenCrossing'
 
-        if self._PastPricesArrayAsk[-1] < Bands['lowBid']:
-            if DEBUG:
-                print(f"BUY Start searching sec cross with Ask higher to lowBid")
-            self._introWaitingTimer.start()
-            while (self._introWaitingTimer.elapsed() // 60) < self.crossingMaxTime:
-                time.sleep(60.5)
-                self._collect_new_price()
-                Bands = self._calculate_bands()
-                if self._PastPricesArrayAsk[-1] > Bands['lowBid']:
-                    logTuple = self._PastPricesArrayAsk[-(int(self.strategyParams['varianceLookBack']) + 1):]
-                    retTuple = np.diff(logTuple)
-                    logTuple = logTuple[1:]
-                    assert len(retTuple) == len(logTuple)
-                    if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
-                        openDict = dict()
-                        openDict['typeOperation'] = 'BUY'
-                        # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
-                        openDict['position'] = int(round(self._tradeCapital))
-                        openDict['openPrice'] = Bands['lowBid']
-                        openDict['openTime'] = self.timer.elapsed()
-                        openDict['stopLossBorder'] = round(Bands['lowBid'] - self.strategyParams['stopLossStdMultiplier'] * Bands['BidStd'], 3)
-                        self._introWaitingTimer.stop()
-                        return openDict
-            if (self._introWaitingTimer.elapsed() // 60) >= self.crossingMaxTime:
-                self._introWaitingTimer.stop()
-                return 'CantOpenCrossing'
+            if self._PastPricesArrayAsk[-1] < Bands['lowBid']:
+                if DEBUG:
+                    print(f"BUY Start searching sec cross with Ask higher to lowBid")
+                self._introWaitingTimer.start()
+                while (self._introWaitingTimer.elapsed() // 60) < self.crossingMaxTime:
+                    time.sleep(60.5)
+                    self._collect_new_price()
+                    Bands = self._calculate_bands()
+                    if self._PastPricesArrayAsk[-1] > Bands['lowBid']:
+                        logTuple = self._PastPricesArrayAsk[-(int(self.strategyParams['varianceLookBack']) + 1):]
+                        retTuple = np.diff(logTuple)
+                        logTuple = logTuple[1:]
+                        assert len(retTuple) == len(logTuple)
+                        if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                            openDict = dict()
+                            openDict['typeOperation'] = 'BUY'
+                            # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                            openDict['position'] = int(round(self._tradeCapital))
+                            openDict['openPrice'] = Bands['lowBid']
+                            openDict['openTime'] = self.timer.elapsed()
+                            openDict['stopLossBorder'] = round(Bands['lowBid'] - self.strategyParams['stopLossStdMultiplier'] * Bands['BidStd'], 3)
+                            self._introWaitingTimer.stop()
+                            return openDict
+                if (self._introWaitingTimer.elapsed() // 60) >= self.crossingMaxTime:
+                    self._introWaitingTimer.stop()
+                    return 'CantOpenCrossing'
 
-        time.sleep(60.5)
-        return 'NoFirstMatch'
+            # time.sleep(60.5)
+            return 'NoFirstMatch'
 
+        if (self._mode == 'singleCrossing') and (self._BBandsMode == 'Ask&Bid'):
+            if self._PastPricesArrayBid[-1] > Bands['highAsk']:
+                if DEBUG:
+                    print(f"SELL Start searching sec cross with Bid higher to highASK")
+                logTuple = self._PastPricesArrayBid[-(int(self.strategyParams['varianceLookBack']) + 1):]
+                retTuple = np.diff(logTuple)
+                logTuple = logTuple[1:]
+                assert len(retTuple) == len(logTuple)
+                if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                    openDict = dict()
+                    openDict['typeOperation'] = 'SELL'
+                    # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                    openDict['position'] = - int(round(self._tradeCapital))
+                    openDict['openPrice'] = Bands['highAsk']
+                    openDict['openTime'] = self.timer.elapsed()
+                    openDict['stopLossBorder'] = round(Bands['highAsk'] + self.strategyParams['stopLossStdMultiplier'] * Bands['AskStd'], 3)
+                    self._introWaitingTimer.stop()
+                    return openDict
+
+            if self._PastPricesArrayAsk[-1] < Bands['lowBid']:
+                if DEBUG:
+                    print(f"BUY Start searching sec cross with Ask higher to lowBid")
+
+                logTuple = self._PastPricesArrayAsk[-(int(self.strategyParams['varianceLookBack']) + 1):]
+                retTuple = np.diff(logTuple)
+                logTuple = logTuple[1:]
+                assert len(retTuple) == len(logTuple)
+                if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                    openDict = dict()
+                    openDict['typeOperation'] = 'BUY'
+                    # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                    openDict['position'] = int(round(self._tradeCapital))
+                    openDict['openPrice'] = Bands['lowBid']
+                    openDict['openTime'] = self.timer.elapsed()
+                    openDict['stopLossBorder'] = round(Bands['lowBid'] - self.strategyParams['stopLossStdMultiplier'] * Bands['BidStd'], 3)
+                    self._introWaitingTimer.stop()
+                    return openDict
+
+            # time.sleep(60.5)
+            return 'NoFirstMatch'
+
+        if (self._mode == 'singleCrossing') and (self._BBandsMode == 'OnlyOne'):
+            if self._PastPricesArrayMiddle[-1] > Bands['highAsk']:
+                if DEBUG:
+                    print(f"SELL Start searching sec cross with Bid higher to highASK")
+                logTuple = self._PastPricesArrayMiddle[-(int(self.strategyParams['varianceLookBack']) + 1):]
+                retTuple = np.diff(logTuple)
+                logTuple = logTuple[1:]
+                assert len(retTuple) == len(logTuple)
+                if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                    openDict = dict()
+                    openDict['typeOperation'] = 'SELL'
+                    # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                    openDict['position'] = - int(round(self._tradeCapital))
+                    openDict['openPrice'] = Bands['highAsk']
+                    openDict['openTime'] = self.timer.elapsed()
+                    openDict['stopLossBorder'] = round(Bands['highAsk'] + self.strategyParams['stopLossStdMultiplier'] * Bands['AskStd'], 3)
+                    self._introWaitingTimer.stop()
+                    return openDict
+
+            if self._PastPricesArrayMiddle[-1] < Bands['lowBid']:
+                if DEBUG:
+                    print(f"BUY Start searching sec cross with Ask higher to lowBid")
+
+                logTuple = self._PastPricesArrayMiddle[-(int(self.strategyParams['varianceLookBack']) + 1):]
+                retTuple = np.diff(logTuple)
+                logTuple = logTuple[1:]
+                assert len(retTuple) == len(logTuple)
+                if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                    openDict = dict()
+                    openDict['typeOperation'] = 'BUY'
+                    # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                    openDict['position'] = int(round(self._tradeCapital))
+                    openDict['openPrice'] = Bands['lowBid']
+                    openDict['openTime'] = self.timer.elapsed()
+                    openDict['stopLossBorder'] = round(Bands['lowBid'] - self.strategyParams['stopLossStdMultiplier'] * Bands['BidStd'], 3)
+                    self._introWaitingTimer.stop()
+                    return openDict
+
+            # time.sleep(60.5)
+            return 'NoFirstMatch'
+
+        if (self._mode == 'multiCrossing') and (self._BBandsMode == 'OnlyOne'):
+            if self._PastPricesArrayMiddle[-1] > Bands['highAsk']:
+                if DEBUG:
+                    print(f"SELL Start searching sec cross with Bid higher to highASK")
+                self._introWaitingTimer.start()
+                while (self._introWaitingTimer.elapsed() // 60) < self.crossingMaxTime:
+                    time.sleep(60.5)
+                    self._collect_new_price()
+                    Bands = self._calculate_bands()
+                    if self._PastPricesArrayMiddle[-1] < Bands['highAsk']:
+                        logTuple = self._PastPricesArrayMiddle[-(int(self.strategyParams['varianceLookBack']) + 1):]
+                        retTuple = np.diff(logTuple)
+                        logTuple = logTuple[1:]
+                        assert len(retTuple) == len(logTuple)
+                        if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                            openDict = dict()
+                            openDict['typeOperation'] = 'SELL'
+                            # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                            openDict['position'] = - int(round(self._tradeCapital))
+                            openDict['openPrice'] = Bands['highAsk']
+                            openDict['openTime'] = self.timer.elapsed()
+                            openDict['stopLossBorder'] = round(
+                                Bands['highAsk'] + self.strategyParams['stopLossStdMultiplier'] * Bands['AskStd'], 3)
+                            self._introWaitingTimer.stop()
+                            return openDict
+                if (self._introWaitingTimer.elapsed() // 60) >= self.crossingMaxTime:
+                    self._introWaitingTimer.stop()
+                    return 'CantOpenCrossing'
+
+            if self._PastPricesArrayMiddle[-1] < Bands['lowBid']:
+                if DEBUG:
+                    print(f"BUY Start searching sec cross with Ask higher to lowBid")
+                self._introWaitingTimer.start()
+                while (self._introWaitingTimer.elapsed() // 60) < self.crossingMaxTime:
+                    time.sleep(60.5)
+                    self._collect_new_price()
+                    Bands = self._calculate_bands()
+                    if self._PastPricesArrayMiddle[-1] > Bands['lowBid']:
+                        logTuple = self._PastPricesArrayMiddle[-(int(self.strategyParams['varianceLookBack']) + 1):]
+                        retTuple = np.diff(logTuple)
+                        logTuple = logTuple[1:]
+                        assert len(retTuple) == len(logTuple)
+                        if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                            openDict = dict()
+                            openDict['typeOperation'] = 'BUY'
+                            # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                            openDict['position'] = int(round(self._tradeCapital))
+                            openDict['openPrice'] = Bands['lowBid']
+                            openDict['openTime'] = self.timer.elapsed()
+                            openDict['stopLossBorder'] = round(
+                                Bands['lowBid'] - self.strategyParams['stopLossStdMultiplier'] * Bands['BidStd'], 3)
+                            self._introWaitingTimer.stop()
+                            return openDict
+                if (self._introWaitingTimer.elapsed() // 60) >= self.crossingMaxTime:
+                    self._introWaitingTimer.stop()
+                    return 'CantOpenCrossing'
+
+            # time.sleep(60.5)
+            return 'NoFirstMatch'
 
     def _buyStop(self):
-        self._collect_new_price()
-        if (self.tradingTimer.elapsed() // 60) > self.strategyParams['timeBarrier']:
-            return {'typeHolding': 'endPeriod', 'closePrice': self._PastPricesArray[-1]}
+        if self._BBandsMode == 'Ask&Bid':
+            self._collect_new_price()
+            if (self.tradingTimer.elapsed() // 60) > self.strategyParams['timeBarrier']:
+                return {'typeHolding': 'endPeriod', 'closePrice': self._PastPricesArrayBid[-1]}
 
-        if self._PastPricesArrayBid[-1] < self._positionDetails['stopLossBorder']:
-            if DEBUG:
-                print(f"Stop loss, price={self._PastPricesArrayBid[-1]}, stopLoss = {self._positionDetails['stopLossBorder']}")
-            return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArrayBid[-1]}
-        # Block with Trailing StopLoss. This realization is not good. Need to change
-        delta = self._PastPricesArrayBid[-1] - self._PastPricesArrayBid[-2]
-        if delta > 0:
-            self._positionDetails['stopLossBorder'] = round(self._positionDetails['stopLossBorder'] + delta, 3)
+            if self._PastPricesArrayBid[-1] < self._positionDetails['stopLossBorder']:
+                if DEBUG:
+                    print(f"Stop loss, price={self._PastPricesArrayBid[-1]}, stopLoss = {self._positionDetails['stopLossBorder']}")
+                return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArrayBid[-1]}
+            # Block with Trailing StopLoss. This realization is not good. Need to change
+            delta = self._PastPricesArrayBid[-1] - self._PastPricesArrayBid[-2]
+            if delta > 0:
+                self._positionDetails['stopLossBorder'] = round(self._positionDetails['stopLossBorder'] + delta, 3)
 
-        if self._PastPricesArrayBid[-1] < self._positionDetails['stopLossBorder']:
-            if DEBUG:
-                print(f"Stop loss after upper level, price={self._PastPricesArrayBid[-1]}, stopLoss = {self._positionDetails['stopLossBorder']}")
-            return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArrayBid[-1]}
+            if self._PastPricesArrayBid[-1] < self._positionDetails['stopLossBorder']:
+                if DEBUG:
+                    print(f"Stop loss after upper level, price={self._PastPricesArrayBid[-1]}, stopLoss = {self._positionDetails['stopLossBorder']}")
+                return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArrayBid[-1]}
 
-        if not self.waitingToFatMean:
-            workingArray = self._PastPricesArrayBid[-int(self.strategyParams['rollingMean']):]
-            bandMean = np.mean(workingArray)
-            MeanFat = np.mean(self._PastPricesArrayBid[-int(self.strategyParams['fatRollingMean']):])
-            if (self._PastPricesArrayBid[-1] > bandMean) and (self._PastPricesArrayBid[-2] < bandMean):
-                _log = self._PastPricesArrayBid[-(int(max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean']))+1):]
-                compute = {
-                    "retOpenPrice": np.diff(_log),
-                    "logOpenPrice": _log[1:]
-                }
-                assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
-                if MeanFat > bandMean:
-                    if reverse_variance_ratio(preComputed=compute, params=self.strategyParams, timeBorderCounter=self.tradingTimer.elapsed() // 60, VRstatement=self.waitingToFatMean):
-                        self.waitingToFatMean = True
-                        return False
+            if not self.waitingToFatMean:
+                workingArray = self._PastPricesArrayBid[-int(self.strategyParams['rollingMean']):]
+                bandMean = np.mean(workingArray)
+                MeanFat = np.mean(self._PastPricesArrayBid[-int(self.strategyParams['fatRollingMean']):])
+                if (self._PastPricesArrayBid[-1] > bandMean) and (self._PastPricesArrayBid[-2] < bandMean):
+                    _log = self._PastPricesArrayBid[-(int(max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean']))+1):]
+                    compute = {
+                        "retOpenPrice": np.diff(_log),
+                        "logOpenPrice": _log[1:]
+                    }
+                    assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
+                    if MeanFat > bandMean:
+                        if reverse_variance_ratio(preComputed=compute, params=self.strategyParams, timeBorderCounter=self.tradingTimer.elapsed() // 60, VRstatement=self.waitingToFatMean):
+                            self.waitingToFatMean = True
+                            return False
+                        else:
+                            return {'typeHolding': 'lightCross', 'closePrice': bandMean}
                     else:
-                        return {'typeHolding': 'lightCross', 'closePrice': bandMean}
-                else:
-                    return {'typeHolding': 'lightCrossEmergent', 'closePrice': bandMean}
+                        return {'typeHolding': 'lightCrossEmergent', 'closePrice': bandMean}
 
-        if self.waitingToFatMean:
-            MeanFat = np.mean(self._PastPricesArrayBid[-int(self.strategyParams['fatRollingMean']):])
-            if self._PastPricesArrayBid[-1] > MeanFat:
-                return {'typeHolding': 'fatExtraProfit', 'closePrice': MeanFat}
+            if self.waitingToFatMean:
+                MeanFat = np.mean(self._PastPricesArrayBid[-int(self.strategyParams['fatRollingMean']):])
+                if self._PastPricesArrayBid[-1] > MeanFat:
+                    return {'typeHolding': 'fatExtraProfit', 'closePrice': MeanFat}
 
-            _log = self._PastPricesArrayBid[
-                   -(int(max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
-            compute = {
-                "retOpenPrice": np.diff(_log),
-                "logOpenPrice": _log[1:]
-            }
-            if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams, timeBorderCounter=self.tradingTimer.elapsed() // 60, VRstatement=self.waitingToFatMean):
-                self.waitingToFatMean = False
-                return False
-
-        return False
-
-
-    def _shortStop(self):
-        if self._PastPricesArrayAsk[-1] > self._positionDetails['stopLossBorder']:
-            return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArrayAsk[-1]}
-        # Block with Trailing StopLoss. This realization is not good. Need to change
-        delta = self._PastPricesArrayAsk[-1] - self._PastPricesArrayAsk[-2]
-        if delta < 0:
-            self._positionDetails['stopLossBorder'] = round(self._positionDetails['stopLossBorder'] - delta, 3)
-
-        if self._PastPricesArrayAsk[-1] > self._positionDetails['stopLossBorder']:
-            return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArrayAsk[-1]}
-
-        if not self.waitingToFatMean:
-            workingArray = self._PastPricesArrayAsk[-int(self.strategyParams['rollingMean']):]
-            bandMean = np.mean(workingArray)
-            MeanFat = np.mean(self._PastPricesArrayAsk[-int(self.strategyParams['fatRollingMean']):])
-            if (self._PastPricesArrayAsk[-1] < bandMean) and (self._PastPricesArrayAsk[-2] > bandMean):
-                _log = self._PastPricesArrayAsk[-(int(
-                    max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
+                _log = self._PastPricesArrayBid[
+                       -(int(max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
                 compute = {
                     "retOpenPrice": np.diff(_log),
                     "logOpenPrice": _log[1:]
                 }
-                assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
-                if MeanFat < bandMean:
-                    if reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams, timeBorderCounter=self.tradingTimer.elapsed() // 60, VRstatement=self.waitingToFatMean):
+                    self.waitingToFatMean = False
+                    return False
+
+            return False
+
+        if self._BBandsMode == 'OnlyOne':
+            self._collect_new_price()
+            if (self.tradingTimer.elapsed() // 60) > self.strategyParams['timeBarrier']:
+                return {'typeHolding': 'endPeriod', 'closePrice': self._PastPricesArrayMiddle[-1]}
+
+            if self._PastPricesArrayMiddle[-1] < self._positionDetails['stopLossBorder']:
+                if DEBUG:
+                    print(
+                        f"Stop loss, price={self._PastPricesArrayMiddle[-1]}, stopLoss = {self._positionDetails['stopLossBorder']}")
+                return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArrayMiddle[-1]}
+            # Block with Trailing StopLoss. This realization is not good. Need to change
+            delta = self._PastPricesArrayMiddle[-1] - self._PastPricesArrayMiddle[-2]
+            if delta > 0:
+                self._positionDetails['stopLossBorder'] = round(self._positionDetails['stopLossBorder'] + delta, 3)
+
+            if self._PastPricesArrayMiddle[-1] < self._positionDetails['stopLossBorder']:
+                if DEBUG:
+                    print(
+                        f"Stop loss after upper level, price={self._PastPricesArrayMiddle[-1]}, stopLoss = {self._positionDetails['stopLossBorder']}")
+                return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArrayMiddle[-1]}
+
+            if not self.waitingToFatMean:
+                workingArray = self._PastPricesArrayMiddle[-int(self.strategyParams['rollingMean']):]
+                bandMean = np.mean(workingArray)
+                MeanFat = np.mean(self._PastPricesArrayMiddle[-int(self.strategyParams['fatRollingMean']):])
+                if (self._PastPricesArrayMiddle[-1] > bandMean) and (self._PastPricesArrayMiddle[-2] < bandMean):
+                    _log = self._PastPricesArrayMiddle[-(int(
+                        max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
+                    compute = {
+                        "retOpenPrice": np.diff(_log),
+                        "logOpenPrice": _log[1:]
+                    }
+                    assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
+                    if MeanFat > bandMean:
+                        if reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                                                  timeBorderCounter=self.tradingTimer.elapsed() // 60,
+                                                  VRstatement=self.waitingToFatMean):
+                            self.waitingToFatMean = True
+                            return False
+                        else:
+                            return {'typeHolding': 'lightCross', 'closePrice': bandMean}
+                    else:
+                        return {'typeHolding': 'lightCrossEmergent', 'closePrice': bandMean}
+
+            if self.waitingToFatMean:
+                MeanFat = np.mean(self._PastPricesArrayMiddle[-int(self.strategyParams['fatRollingMean']):])
+                if self._PastPricesArrayMiddle[-1] > MeanFat:
+                    return {'typeHolding': 'fatExtraProfit', 'closePrice': MeanFat}
+
+                _log = self._PastPricesArrayMiddle[
+                       -(int(max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
+                compute = {
+                    "retOpenPrice": np.diff(_log),
+                    "logOpenPrice": _log[1:]
+                }
+                if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
                                               timeBorderCounter=self.tradingTimer.elapsed() // 60,
                                               VRstatement=self.waitingToFatMean):
-                        self.waitingToFatMean = True
-                        return False
+                    self.waitingToFatMean = False
+                    return False
+
+            return False
+
+    def _shortStop(self):
+        if self._BBandsMode == "Ask&Bid":
+            if self._PastPricesArrayAsk[-1] > self._positionDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArrayAsk[-1]}
+            # Block with Trailing StopLoss. This realization is not good. Need to change
+            delta = self._PastPricesArrayAsk[-1] - self._PastPricesArrayAsk[-2]
+            if delta < 0:
+                self._positionDetails['stopLossBorder'] = round(self._positionDetails['stopLossBorder'] - delta, 3)
+
+            if self._PastPricesArrayAsk[-1] > self._positionDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArrayAsk[-1]}
+
+            if not self.waitingToFatMean:
+                workingArray = self._PastPricesArrayAsk[-int(self.strategyParams['rollingMean']):]
+                bandMean = np.mean(workingArray)
+                MeanFat = np.mean(self._PastPricesArrayAsk[-int(self.strategyParams['fatRollingMean']):])
+                if (self._PastPricesArrayAsk[-1] < bandMean) and (self._PastPricesArrayAsk[-2] > bandMean):
+                    _log = self._PastPricesArrayAsk[-(int(
+                        max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
+                    compute = {
+                        "retOpenPrice": np.diff(_log),
+                        "logOpenPrice": _log[1:]
+                    }
+                    assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
+                    if MeanFat < bandMean:
+                        if reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                                                  timeBorderCounter=self.tradingTimer.elapsed() // 60,
+                                                  VRstatement=self.waitingToFatMean):
+                            self.waitingToFatMean = True
+                            return False
+                        else:
+                            return {'typeHolding': 'lightCross', 'closePrice': bandMean}
                     else:
-                        return {'typeHolding': 'lightCross', 'closePrice': bandMean}
-                else:
-                    return {'typeHolding': 'lightCrossEmergent', 'closePrice': bandMean}
+                        return {'typeHolding': 'lightCrossEmergent', 'closePrice': bandMean}
 
-        if self.waitingToFatMean:
-            MeanFat = np.mean(self._PastPricesArrayAsk[-int(self.strategyParams['fatRollingMean']):])
-            if self._PastPricesArrayAsk[-1] < MeanFat:
-                return {'typeHolding': 'fatExtraProfit', 'closePrice': MeanFat}
+            if self.waitingToFatMean:
+                MeanFat = np.mean(self._PastPricesArrayAsk[-int(self.strategyParams['fatRollingMean']):])
+                if self._PastPricesArrayAsk[-1] < MeanFat:
+                    return {'typeHolding': 'fatExtraProfit', 'closePrice': MeanFat}
 
-            _log = self._PastPricesArrayAsk[
-                   -(int(max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
-            compute = {
-                "retOpenPrice": np.diff(_log),
-                "logOpenPrice": _log[1:]
-            }
-            if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
-                                          timeBorderCounter=self.tradingTimer.elapsed() // 60,
-                                          VRstatement=self.waitingToFatMean):
-                self.waitingToFatMean = False
-                return False
+                _log = self._PastPricesArrayAsk[
+                       -(int(max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
+                compute = {
+                    "retOpenPrice": np.diff(_log),
+                    "logOpenPrice": _log[1:]
+                }
+                if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                                              timeBorderCounter=self.tradingTimer.elapsed() // 60,
+                                              VRstatement=self.waitingToFatMean):
+                    self.waitingToFatMean = False
+                    return False
 
-        return False
+            return False
+        if self._BBandsMode == 'OnlyOne':
+            if self._PastPricesArrayMiddle[-1] > self._positionDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArrayMiddle[-1]}
+            # Block with Trailing StopLoss. This realization is not good. Need to change
+            delta = self._PastPricesArrayMiddle[-1] - self._PastPricesArrayMiddle[-2]
+            if delta < 0:
+                self._positionDetails['stopLossBorder'] = round(self._positionDetails['stopLossBorder'] - delta, 3)
 
+            if self._PastPricesArrayMiddle[-1] > self._positionDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self._PastPricesArrayMiddle[-1]}
+
+            if not self.waitingToFatMean:
+                workingArray = self._PastPricesArrayMiddle[-int(self.strategyParams['rollingMean']):]
+                bandMean = np.mean(workingArray)
+                MeanFat = np.mean(self._PastPricesArrayMiddle[-int(self.strategyParams['fatRollingMean']):])
+                if (self._PastPricesArrayMiddle[-1] < bandMean) and (self._PastPricesArrayMiddle[-2] > bandMean):
+                    _log = self._PastPricesArrayMiddle[-(int(
+                        max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
+                    compute = {
+                        "retOpenPrice": np.diff(_log),
+                        "logOpenPrice": _log[1:]
+                    }
+                    assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
+                    if MeanFat < bandMean:
+                        if reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                                                  timeBorderCounter=self.tradingTimer.elapsed() // 60,
+                                                  VRstatement=self.waitingToFatMean):
+                            self.waitingToFatMean = True
+                            return False
+                        else:
+                            return {'typeHolding': 'lightCross', 'closePrice': bandMean}
+                    else:
+                        return {'typeHolding': 'lightCrossEmergent', 'closePrice': bandMean}
+
+            if self.waitingToFatMean:
+                MeanFat = np.mean(self._PastPricesArrayMiddle[-int(self.strategyParams['fatRollingMean']):])
+                if self._PastPricesArrayMiddle[-1] < MeanFat:
+                    return {'typeHolding': 'fatExtraProfit', 'closePrice': MeanFat}
+
+                _log = self._PastPricesArrayMiddle[
+                       -(int(max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
+                compute = {
+                    "retOpenPrice": np.diff(_log),
+                    "logOpenPrice": _log[1:]
+                }
+                if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                                              timeBorderCounter=self.tradingTimer.elapsed() // 60,
+                                              VRstatement=self.waitingToFatMean):
+                    self.waitingToFatMean = False
+                    return False
+
+            return False
 
     def _trading_loop(self, typeOrder='market'):
         # Waiting until we can open a trade
         while (not self._inPosition):
             answer = self._open_trade_ability()
             while not isinstance(answer, dict):
+                print('Sleep answer 60')
                 time.sleep(60)
                 answer = self._open_trade_ability()
                 print('ANSWER', answer)
@@ -337,14 +649,14 @@ class ImRobot:
                 self._inPosition = True
                 self.tradingTimer.start()
                 print('Complete trade')
-
+        self._positionDetails = answer
         time.sleep(60)
         while self._inPosition:
             if answer['typeOperation'] == 'BUY':
                 hold = self._buyStop()
                 while not isinstance(hold, dict):
                     time.sleep(60)
-                    hold = self._open_trade_ability()
+                    hold = self._buyStop()
                     if DEBUG:
                         print('Hold', hold)
                 if typeOrder == 'limit':
@@ -357,20 +669,20 @@ class ImRobot:
                         orderStatus = self.connector.check_order(orderID)
                         if not orderStatus:
                             self._inPosition = False
-                            self.tradingTimer.start()
+                            self.tradingTimer.stop()
                     if not self._inPosition:
                         self.connector.cancelOrder(orderID)
                 if typeOrder == 'market':
-                    orderID = self.connector.place_order({self.SAXO: answer['position']}, order_type='market')
+                    orderID = self.connector.place_order({self.SAXO: -1 * answer['position']}, order_type='market')
                     self._inPosition = False
                     self.tradingTimer.stop()
                     print('Complete stop trade')
 
             if answer['typeOperation'] == 'SELL':
-                self._shortStop()
+                hold = self._shortStop()
                 while not isinstance(hold, dict):
                     time.sleep(60)
-                    hold = self._open_trade_ability()
+                    hold = self._shortStop()
                     if DEBUG:
                         print('Hold', hold)
                 if typeOrder == 'limit':
@@ -383,14 +695,21 @@ class ImRobot:
                         orderStatus = self.connector.check_order(orderID)
                         if not orderStatus:
                             self._inPosition = False
-                            self.tradingTimer.start()
+                            self.tradingTimer.stop()
                     if not self._inPosition:
                         self.connector.cancelOrder(orderID)
                 if typeOrder == 'market':
-                    orderID = self.connector.place_order({self.SAXO: answer['position']}, order_type='market')
+                    orderID = self.connector.place_order({self.SAXO: -1 * answer['position']}, order_type='market')
                     self._inPosition = False
                     self.tradingTimer.stop()
                     print('Complete stop trade')
+
+        _stat = {**answer, **hold}
+        _stat['StrategyWorkingTime'] = self.timer.elapsed()
+        _stat['DateTime'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self.statCollector.add_trade_line(_stat)
+        time.sleep(60)
+
 
     def start_tradingCycle(self):
         self._inPosition = False
