@@ -41,7 +41,7 @@ class TradingInterface:
     updatableToken: bool
     _cachedCollectedTime: Union[None, datetime.datetime]
 
-    def __init__(self, name: str, robotConfig: str, strategyParameters_file_way: str,
+    def __init__(self, name: str, robotConfig: str,
                  ticker: str, requireTokenUpdate: bool = True):
         """
         Initialize Interface
@@ -52,7 +52,6 @@ class TradingInterface:
         apiToken,eyJhbGciOiJFUzI1NiIsIng1dCI6IkRFNDc0QUQ1Q0NGRUFFRTlDRThCRDQ3ODlFRTZDOTEyRjVCM0UzOTQifQ.eyJvYWEiOiI3Nzc3NSIsImlzcyI6Im9hIiwiYWlkIjoiMTA5IiwidWlkIjoiNGFOUTNBSE41TnRDUmJ8UjNkNy1hdz09IiwiY2lkIjoiNGFOUTNBSE41TnRDUmJ8UjNkNy1hdz09IiwiaXNhIjoiRmFsc2UiLCJ0aWQiOiIyMDAyIiwic2lkIjoiYmZiZGM1OTE2ZDE5NDcwYTg1OTY1NDg5MTJiZGU1MWYiLCJkZ2kiOiI4NCIsImV4cCI6IjE2NTA0MTEzOTAiLCJvYWwiOiIxRiJ9.6usTiTNKk-YJTM9wenTKOV_NbeRngbouPCuzgPfW9drpGZUFeoywcybfS1_q0vVhH0m1QM4rFSsYKLFc5OTm2w
         apiTokenLifeTime,86400
         ...
-        :param strategyParameters_file_way: txt with strategy hyper parameters
         :param ticker: which instrument we trade?
         :param requireTokenUpdate should token for broker Interface be updatable
         """
@@ -80,8 +79,13 @@ class TradingInterface:
         self.HighAsk = list()
         self.LowAsk = list()
         self.LowBid = list()
+        self.HighBid = list()
         self.OpenAsk = list()
         self.OpenBid = list()
+        self.OpenMiddle = list()
+        self.CloseMiddle = list()
+        self.LowMiddle = list()
+        self.HighMiddle = list()
         self.Time = list()
         # Utils block
         self._cachedCollectedTime = None
@@ -135,8 +139,13 @@ class TradingInterface:
             self.HighAsk = list(history['HighAsk'].values)
             self.LowAsk = list(history['LowAsk'].values)
             self.LowBid = list(history['LowBid'].values)
+            self.HighBid = list(history['HighBid'].values)
             self.OpenAsk = list(history['OpenAsk'].values)
             self.OpenBid = list(history['OpenBid'].values)
+            self.OpenMiddle = list(history.apply(lambda x: (x['OpenBid'] + x['OpenAsk']) / 2, axis=1).values)
+            self.CloseMiddle = list(history.apply(lambda x: (x['CloseBid'] + x['CloseAsk']) / 2, axis=1).values)
+            self.LowMiddle = list(history.apply(lambda x: (x['LowBid'] + x['LowAsk']) / 2, axis=1).values)
+            self.HighMiddle = list(history.apply(lambda x: (x['HighBid'] + x['HighAsk']) / 2, axis=1).values)
             self.Time = list(history['Time'].values)
 
             self._cachedCollectedTime = self.Time[-1]
@@ -151,7 +160,6 @@ class TradingInterface:
             warnings.warn('TradingInterface updatable time miss-matched with history density request')
 
         if self.brokerInterface is not None:
-            print(self.Time[-5:])
             _cachedCollectedTime = self._cachedCollectedTime
             while True:
                 try:
@@ -176,9 +184,14 @@ class TradingInterface:
             self.HighAsk.append(history['HighAsk'].values[0])
             self.LowAsk.append(history['LowAsk'].values[0])
             self.LowBid.append(history['LowBid'].values[0])
+            self.HighBid.append(history['HighBid'].values[0])
             self.OpenAsk.append(history['OpenAsk'].values[0])
             self.OpenBid.append(history['OpenBid'].values[0])
             self.Time.append(list(history['Time'].values)[0])
+            self.OpenMiddle.append(history.apply(lambda x: (x['OpenBid'] + x['OpenAsk']) / 2, axis=1).values[0])
+            self.CloseMiddle.append(history.apply(lambda x: (x['CloseBid'] + x['CloseAsk']) / 2, axis=1).values[0])
+            self.LowMiddle.append(history.apply(lambda x: (x['LowBid'] + x['LowAsk']) / 2, axis=1).values[0])
+            self.HighMiddle.append(history.apply(lambda x: (x['HighBid'] + x['HighAsk']) / 2, axis=1).values[0])
             self._cachedCollectedTime = self.Time[-1]
 
             print(self.Time[-1])
@@ -188,18 +201,19 @@ class TradingInterface:
             raise ModuleNotFoundError('No brokerInterface plugged')
 
 
-# initialize
-monkey = TradingInterface(name='monkey', robotConfig='robotConfig.txt',
-                          strategyParameters_file_way='strategyParameters.txt', ticker='CHFJPY',
-                          requireTokenUpdate=True)
-# add saxo interface
-monkey.add_broker_interface(SaxoOrderInterface(monkey.get_token))
-# add telegram notificator
-monkey.add_fast_notificator(TelegramNotification())
-# add strategy rules
-monkey.add_strategy(MeanReversionDual())
+if __name__ == '__main__':
+    # initialize
+    monkey = TradingInterface(name='monkey', robotConfig='robotConfig.txt', ticker='CHFJPY',
+                              requireTokenUpdate=True)
+    # add saxo interface
+    monkey.add_broker_interface(SaxoOrderInterface(monkey.get_token))
+    # add telegram notificator
+    # monkey.add_fast_notificator(TelegramNotification())
+    # add strategy rules
+    # monkey.add_strategy(MeanReversionDual(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
+    #                                       BBandsMode='Ask&Bid', openCrossMode='singleCrossing'))
 
-# monkey.download_history_data(60, 100)
-# monkey.download_actual_dot(60, 1)
-# monkey.download_actual_dot(60, 1)
+    monkey.download_history_data(60, 100)
+    monkey.download_actual_dot(60, 1)
+    monkey.download_actual_dot(60, 1)
 
