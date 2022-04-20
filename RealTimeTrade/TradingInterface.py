@@ -205,6 +205,7 @@ class TradingInterface:
         else:
             raise ModuleNotFoundError('No brokerInterface plugged')
 
+    def search_for_open(self):
 
 if __name__ == '__main__':
     DEBUG_MODE = True

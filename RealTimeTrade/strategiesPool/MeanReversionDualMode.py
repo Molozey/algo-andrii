@@ -333,6 +333,10 @@ class MeanReversionDual(AbstractStrategy):
         return f"{self.UnableToOpenLog}no crossing b bands"
 
     def open_trade_ability(self):
+        fresh_data = self.tradingInterface.download_actual_dot(density=self.tradingInterface.updatableDataTime)
+        if self.tradingInterface.debug:
+            print(fresh_data)
+
         self.Bands = self._make_bollinger_bands()
         while not isinstance(self.Bands, dict):
             time.sleep(self.tradingInterface.updatableDataTime)
@@ -341,14 +345,27 @@ class MeanReversionDual(AbstractStrategy):
                 print(fresh_data)
             self.Bands = self._make_bollinger_bands()
 
+        answer = None
         if (self.openMode == 'multiCrossing') and (self.BBandsMode == 'Ask&Bid'):
-            self._multi_cross_ask_and_bid()
+            answer = self._multi_cross_ask_and_bid()
+            while not isinstance(answer, dict):
+                time.sleep(self.tradingInterface.updatableDataTime)
+                answer = self._multi_cross_ask_and_bid()
 
         if (self.openMode == 'multiCrossing') and (self.BBandsMode == 'OnlyOne'):
-            self._multi_cross_only_middle()
+            answer = self._multi_cross_only_middle()
+            while not isinstance(answer, dict):
+                time.sleep(self.tradingInterface.updatableDataTime)
+                answer = self._multi_cross_only_middle()
 
         if (self.openMode == 'singleCrossing') and (self.BBandsMode == 'Ask&Bid'):
-            self._single_cross_ask_and_bid()
+            answer = self._single_cross_ask_and_bid()
+            while not isinstance(answer, dict):
+                time.sleep(self.tradingInterface.updatableDataTime)
+                answer = self._single_cross_ask_and_bid()
 
         if (self.openMode == 'singleCrossing') and (self.BBandsMode == 'OnlyOne'):
-            self._single_cross_only_middle()
+            answer = self._single_cross_only_middle()
+            while not isinstance(answer, dict):
+                time.sleep(self.tradingInterface.updatableDataTime)
+                answer = self._single_cross_only_middle()
