@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Union
 import pandas as pd
+import time
 
 
 class MeanReversionDual:
@@ -9,6 +10,7 @@ class MeanReversionDual:
 
 from RealTimeTrade.TradingInterface import TradingInterface
 from RealTimeTrade.utils.utils import *
+from RealTimeTrade.utils.timerModule import Timer
 
 
 class AbstractStrategy(ABC):
@@ -16,6 +18,9 @@ class AbstractStrategy(ABC):
 
 
 class MeanReversionDual(AbstractStrategy):
+    UnableToOpenLog = "LOG | UnableOpen: "
+    UnableToOpenLogCross = UnableToOpenLog + " no second crossing: "
+
     availableTradingInterface = Union[None, TradingInterface]
     availableBBandsModes = Union['Ask&Bid', 'OnlyOne']
     availableOpenCrossingModes = Union['multiCrossing', 'singleCrossing']
@@ -24,20 +29,27 @@ class MeanReversionDual(AbstractStrategy):
     BBandsMode: availableBBandsModes
     openMode: availableOpenCrossingModes
 
-    def __init__(self, strategyConfigPath: str, BBandsMode: availableBBandsModes,
-                 openCrossMode: availableOpenCrossingModes):
+    def __init__(self, strategyConfigPath: str, strategyModePath: str):
         super(MeanReversionDual, self).__init__()
         self._tradeCapital = 100_000
 
         self.tradingInterface = None
-        self.openMode = openCrossMode
-        self.BBandsMode = BBandsMode
+
+        mode = pd.read_csv(strategyModePath, header=None).T
+        mode = pd.Series(data=mode.iloc[1, :].values,
+                                             index=mode.iloc[0, :])
+        self.openMode = mode['OpenCrossingMode']
+        self.BBandsMode = mode['BBandsMode']
+        self.maxCrossingParameter = mode['waitingParameter']
+        del mode
 
         self._initStrategyParams = pd.read_csv(strategyConfigPath, header=None).T
         self._initStrategyParams = pd.Series(data=self._initStrategyParams.iloc[1, :].values,
                                              index=self._initStrategyParams.iloc[0, :])
 
         self.strategyParams = create_strategy_config(self._initStrategyParams, CAP=self._tradeCapital)
+
+        self.Bands = None
         pass
 
     def add_trading_interface(self, tradingInterface: availableTradingInterface):
@@ -119,3 +131,224 @@ class MeanReversionDual(AbstractStrategy):
                        'lowAsk': lowMiddleBand, 'highAsk': highMiddleBand, 'halfTime': half_time}
 
             return dictRet
+
+    def _multi_cross_ask_and_bid(self):
+        if self.tradingInterface.OpenBid[-1] > self.Bands['highAsk']:
+            WaitingTimer = Timer()
+            WaitingTimer.start()
+            while (WaitingTimer.elapsed() // 60) < self.maxCrossingParameter:
+                time.sleep(self.tradingInterface.updatableDataTime)
+                fresh_data = self.tradingInterface.download_actual_dot(density=self.tradingInterface.updatableDataTime)
+                if self.tradingInterface.debug:
+                    print(fresh_data)
+                self.Bands = self._make_bollinger_bands()
+                if self.tradingInterface.OpenBid[-1] < self.Bands['highAsk']:
+                    logTuple = self.tradingInterface.OpenBid[-(int(self.strategyParams['varianceLookBack']) + 1):]
+                    retTuple = np.diff(logTuple)
+                    logTuple = logTuple[1:]
+                    assert len(retTuple) == len(logTuple)
+                    if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                        openDict = dict()
+                        openDict['typeOperation'] = 'SELL'
+                        # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                        openDict['position'] = - int(round(self._tradeCapital))
+                        openDict['openPrice'] = self.Bands['highAsk']
+                        openDict['openTime'] = self.tradingInterface.globalTimer.elapsed()
+                        openDict['stopLossBorder'] = round(self.Bands['highAsk'] +
+                                                           self.strategyParams['stopLossStdMultiplier']
+                                                           * self.Bands['AskStd'], 3)
+                        WaitingTimer.stop()
+                        return openDict
+                if (WaitingTimer.elapsed() // 60) >= self.maxCrossingParameter:
+                    WaitingTimer.stop()
+                    del WaitingTimer
+                    return f'{self.UnableToOpenLogCross}CantOpenCrossing'
+
+        if self.tradingInterface.OpenAsk[-1] < self.Bands['lowBid']:
+            WaitingTimer = Timer()
+            WaitingTimer.start()
+            while (WaitingTimer.elapsed() // 60) < self.maxCrossingParameter:
+                time.sleep(self.tradingInterface.updatableDataTime)
+                fresh_data = self.tradingInterface.download_actual_dot(density=self.tradingInterface.updatableDataTime)
+                if self.tradingInterface.debug:
+                    print(fresh_data)
+                self.Bands = self._make_bollinger_bands()
+                if self.tradingInterface.OpenAsk[-1] > self.Bands['lowBid']:
+                    logTuple = self.tradingInterface.OpenAsk[-(int(self.strategyParams['varianceLookBack']) + 1):]
+                    retTuple = np.diff(logTuple)
+                    logTuple = logTuple[1:]
+                    assert len(retTuple) == len(logTuple)
+                    if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                        openDict = dict()
+                        openDict['typeOperation'] = 'BUY'
+                        # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                        openDict['position'] = int(round(self._tradeCapital))
+                        openDict['openPrice'] = self.Bands['lowBid']
+                        openDict['openTime'] = self.tradingInterface.globalTimer.elapsed()
+                        openDict['stopLossBorder'] = round(self.Bands['lowBid'] -
+                                                           self.strategyParams['stopLossStdMultiplier']
+                                                           * self.Bands['BidStd'], 3)
+                        WaitingTimer.stop()
+                        return openDict
+            if (WaitingTimer.elapsed() // 60) >= self.maxCrossingParameter:
+                WaitingTimer.stop()
+                del WaitingTimer
+                return f'{self.UnableToOpenLogCross}CantOpenCrossing'
+
+        return f"{self.UnableToOpenLog}no match"
+
+    def _multi_cross_only_middle(self):
+        if self.tradingInterface.OpenMiddle[-1] > self.Bands['highAsk']:
+            WaitingTimer = Timer()
+            WaitingTimer.start()
+            while (WaitingTimer.elapsed() // 60) < self.maxCrossingParameter:
+                time.sleep(self.tradingInterface.updatableDataTime)
+                fresh_data = self.tradingInterface.download_actual_dot(density=self.tradingInterface.updatableDataTime)
+                if self.tradingInterface.debug:
+                    print(fresh_data)
+                self.Bands = self._make_bollinger_bands()
+                if self.tradingInterface.OpenMiddle[-1] < self.Bands['highAsk']:
+                    logTuple = self.tradingInterface.OpenMiddle[-(int(self.strategyParams['varianceLookBack']) + 1):]
+                    retTuple = np.diff(logTuple)
+                    logTuple = logTuple[1:]
+                    assert len(retTuple) == len(logTuple)
+                    if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                        openDict = dict()
+                        openDict['typeOperation'] = 'SELL'
+                        # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                        openDict['position'] = - int(round(self._tradeCapital))
+                        openDict['openPrice'] = self.Bands['highAsk']
+                        openDict['openTime'] = self.tradingInterface.globalTimer.elapsed()
+                        openDict['stopLossBorder'] = round(self.Bands['highAsk'] +
+                                                           self.strategyParams['stopLossStdMultiplier']
+                                                           * self.Bands['AskStd'], 3)
+                        WaitingTimer.stop()
+                        return openDict
+                if (WaitingTimer.elapsed() // 60) >= self.maxCrossingParameter:
+                    WaitingTimer.stop()
+                    del WaitingTimer
+                    return f'{self.UnableToOpenLogCross}CantOpenCrossing'
+
+        if self.tradingInterface.OpenMiddle[-1] < self.Bands['lowBid']:
+            WaitingTimer = Timer()
+            WaitingTimer.start()
+            while (WaitingTimer.elapsed() // 60) < self.maxCrossingParameter:
+                time.sleep(self.tradingInterface.updatableDataTime)
+                fresh_data = self.tradingInterface.download_actual_dot(density=self.tradingInterface.updatableDataTime)
+                if self.tradingInterface.debug:
+                    print(fresh_data)
+                self.Bands = self._make_bollinger_bands()
+                if self.tradingInterface.OpenMiddle[-1] > self.Bands['lowBid']:
+                    logTuple = self.tradingInterface.OpenMiddle[-(int(self.strategyParams['varianceLookBack']) + 1):]
+                    retTuple = np.diff(logTuple)
+                    logTuple = logTuple[1:]
+                    assert len(retTuple) == len(logTuple)
+                    if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                        openDict = dict()
+                        openDict['typeOperation'] = 'BUY'
+                        # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                        openDict['position'] = int(round(self._tradeCapital))
+                        openDict['openPrice'] = self.Bands['lowBid']
+                        openDict['openTime'] = self.tradingInterface.globalTimer.elapsed()
+                        openDict['stopLossBorder'] = round(self.Bands['lowBid'] -
+                                                           self.strategyParams['stopLossStdMultiplier']
+                                                           * self.Bands['BidStd'], 3)
+                        WaitingTimer.stop()
+                        return openDict
+            if (WaitingTimer.elapsed() // 60) >= self.maxCrossingParameter:
+                WaitingTimer.stop()
+                del WaitingTimer
+                return f'{self.UnableToOpenLogCross}CantOpenCrossing'
+
+        return f"{self.UnableToOpenLog}no crossing b bands"
+
+    def _single_cross_ask_and_bid(self):
+        if self.tradingInterface.OpenBid[-1] > self.Bands['highAsk']:
+            logTuple = self.tradingInterface.OpenBid[-(int(self.strategyParams['varianceLookBack']) + 1):]
+            retTuple = np.diff(logTuple)
+            logTuple = logTuple[1:]
+            assert len(retTuple) == len(logTuple)
+            if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                openDict = dict()
+                openDict['typeOperation'] = 'SELL'
+                # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                openDict['position'] = - int(round(self._tradeCapital))
+                openDict['openPrice'] = self.Bands['highAsk']
+                openDict['openTime'] = self.tradingInterface.globalTimer.elapsed()
+                openDict['stopLossBorder'] = round(
+                    self.Bands['highAsk'] + self.strategyParams['stopLossStdMultiplier'] * self.Bands['AskStd'], 3)
+                return openDict
+
+        if self.tradingInterface.OpenAsk[-1] < self.Bands['lowBid']:
+            logTuple = self.tradingInterface.OpenAsk[-(int(self.strategyParams['varianceLookBack']) + 1):]
+            retTuple = np.diff(logTuple)
+            logTuple = logTuple[1:]
+            assert len(retTuple) == len(logTuple)
+            if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                openDict = dict()
+                openDict['typeOperation'] = 'BUY'
+                # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                openDict['position'] = int(round(self._tradeCapital))
+                openDict['openPrice'] = self.Bands['lowBid']
+                openDict['openTime'] = self.tradingInterface.globalTimer.elapsed()
+                openDict['stopLossBorder'] = round(
+                    self.Bands['lowBid'] - self.strategyParams['stopLossStdMultiplier'] * self.Bands['BidStd'], 3)
+                return openDict
+
+        return f"{self.UnableToOpenLog}no crossing b bands"
+
+    def _single_cross_only_middle(self):
+        if self.tradingInterface.OpenMiddle[-1] > self.Bands['highAsk']:
+            logTuple = self.tradingInterface.OpenMiddle[-(int(self.strategyParams['varianceLookBack']) + 1):]
+            retTuple = np.diff(logTuple)
+            logTuple = logTuple[1:]
+            assert len(retTuple) == len(logTuple)
+            if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                openDict = dict()
+                openDict['typeOperation'] = 'SELL'
+                # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                openDict['position'] = - int(round(self._tradeCapital))
+                openDict['openPrice'] = self.Bands['highAsk']
+                openDict['openTime'] = self.tradingInterface.globalTimer.elapsed()
+                openDict['stopLossBorder'] = round(
+                    self.Bands['highAsk'] + self.strategyParams['stopLossStdMultiplier'] * self.Bands['AskStd'], 3)
+                return openDict
+
+        if self.tradingInterface.OpenMiddle[-1] < self.Bands['lowBid']:
+            logTuple = self.tradingInterface.OpenMiddle[-(int(self.strategyParams['varianceLookBack']) + 1):]
+            retTuple = np.diff(logTuple)
+            logTuple = logTuple[1:]
+            assert len(retTuple) == len(logTuple)
+            if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
+                openDict = dict()
+                openDict['typeOperation'] = 'BUY'
+                # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+                openDict['position'] = int(round(self._tradeCapital))
+                openDict['openPrice'] = self.Bands['lowBid']
+                openDict['openTime'] = self.tradingInterface.globalTimer.elapsed()
+                openDict['stopLossBorder'] = round(
+                    self.Bands['lowBid'] - self.strategyParams['stopLossStdMultiplier'] * self.Bands['BidStd'], 3)
+                return openDict
+
+        return f"{self.UnableToOpenLog}no crossing b bands"
+
+    def open_trade_ability(self):
+        self.Bands = self._make_bollinger_bands()
+        while not isinstance(self.Bands, dict):
+            time.sleep(self.tradingInterface.updatableDataTime)
+            fresh_data = self.tradingInterface.download_actual_dot(density=self.tradingInterface.updatableDataTime)
+            if self.tradingInterface.debug:
+                print(fresh_data)
+            self.Bands = self._make_bollinger_bands()
+
+        if (self.openMode == 'multiCrossing') and (self.BBandsMode == 'Ask&Bid'):
+            self._multi_cross_ask_and_bid()
+
+        if (self.openMode == 'multiCrossing') and (self.BBandsMode == 'OnlyOne'):
+            self._multi_cross_only_middle()
+
+        if (self.openMode == 'singleCrossing') and (self.BBandsMode == 'Ask&Bid'):
+            self._single_cross_ask_and_bid()
+
+        if (self.openMode == 'singleCrossing') and (self.BBandsMode == 'OnlyOne'):
+            self._single_cross_only_middle()

@@ -60,6 +60,8 @@ class TradingInterface:
         :param requireTokenUpdate should token for broker Interface be updatable
         """
         # Robot name and strategy ticker block
+        self.globalTimer = None
+        self.debug = DEBUG_MODE
         self.name = name
         self.ticker = ticker
         # Config block
