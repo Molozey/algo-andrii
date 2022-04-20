@@ -23,7 +23,7 @@ from saxo_openapi.exceptions import OpenAPIError
 global DEBUG_MODE
 global Update_log
 global Error_log
-
+global Open_log
 
 class TradingInterface:
     @classmethod
@@ -206,11 +206,35 @@ class TradingInterface:
             raise ModuleNotFoundError('No brokerInterface plugged')
 
     def search_for_open(self):
+        answer = None
+        freshData = self.download_actual_dot(self.updatableDataTime)
+        if self.debug:
+            print(freshData)
+        while not isinstance(answer, dict):
+            if self.debug:
+                print(f"{Open_log}{answer}")
+            answer = self.strategy.open_trade_ability()
+            freshData = self.download_actual_dot(self.updatableDataTime)
+            if self.debug:
+                print(freshData)
+
+        print(answer)
+
+    def start_execution(self):
+        historical = self.download_history_data(self.updatableDataTime,
+                                                min(int(self.strategy.strategyParams['scanHalfTime']),
+                                                    int(self._robotConfig['maxLookBack'])))
+        if self.debug:
+            print(historical)
+
+        self.search_for_open()
+
 
 if __name__ == '__main__':
     DEBUG_MODE = True
     Update_log = "LOG | UPDATE: "
     Error_log = "LOG | ERROR: "
+    Open_log = "LOG | Cannot open: "
 
     # initialize
     monkey = TradingInterface(name='monkey', robotConfig='robotConfig.txt', ticker='CHFJPY',
@@ -218,18 +242,11 @@ if __name__ == '__main__':
     # add saxo interface
     monkey.add_broker_interface(SaxoOrderInterface(monkey.get_token))
     # add telegram notificator
-    # monkey.add_fast_notificator(TelegramNotification())
+    monkey.add_fast_notificator(TelegramNotification())
     # add strategy rules
-    # monkey.add_strategy(MeanReversionDual(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
-    #                                       BBandsMode='Ask&Bid', openCrossMode='singleCrossing'))
+    monkey.add_strategy(MeanReversionDual(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
+                                          strategyModePath='strategiesPool/DualMeanConfig.txt'))
 
-    historical = monkey.download_history_data(60, 100)
-    if DEBUG_MODE:
-        print(historical)
-    freshData = monkey.download_actual_dot(60, 1)
-    if DEBUG_MODE:
-        print(freshData)
-    freshData = monkey.download_actual_dot(60, 1)
-    if DEBUG_MODE:
-        print(freshData)
+    monkey.strategy.add_trading_interface(monkey)
+    monkey.start_execution()
 

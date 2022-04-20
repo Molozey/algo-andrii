@@ -16,7 +16,7 @@ class AbstractFastNotification(ABC):
 
 
 class TelegramNotification(AbstractFastNotification):
-    @property
+
     def get_stored_token(self):
         return self.TOKEN_SAVER
 
@@ -29,7 +29,7 @@ class TelegramNotification(AbstractFastNotification):
                     datetime.timedelta(seconds=tradingInterface.tokenLife // 2).total_seconds():
                 LastUpdate = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 insideBot.make_token_request_message()
-            tradingInterface.update_token_information(token=cls.get_stored_token, updateDate=LastUpdate)
+                tradingInterface.update_token_information(token=insideBot.get_stored_token(), updateDate=LastUpdate)
 
     def __init__(self):
         self.TOKEN_SAVER = None

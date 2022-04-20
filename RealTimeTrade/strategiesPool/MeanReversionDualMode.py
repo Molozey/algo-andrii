@@ -40,7 +40,7 @@ class MeanReversionDual(AbstractStrategy):
                                              index=mode.iloc[0, :])
         self.openMode = mode['OpenCrossingMode']
         self.BBandsMode = mode['BBandsMode']
-        self.maxCrossingParameter = mode['waitingParameter']
+        self.maxCrossingParameter = int(mode['waitingParameter'])
         del mode
 
         self._initStrategyParams = pd.read_csv(strategyConfigPath, header=None).T
@@ -75,7 +75,7 @@ class MeanReversionDual(AbstractStrategy):
                                                               self.strategyParams['varianceRatioCarreteParameter']) + 1
 
             if (half_time > self.strategyParams['scanHalfTime']) or (half_time < 2):
-                return f'LOG | Unable to calculate BBands because half-time have error value: {half_time}'
+                return f'{self.UnableToOpenLog}Unable to calculate BBands because half-time have error value: {half_time}'
 
             workingAsk = self.tradingInterface.OpenAsk[-self.strategyParams["rollingMean"]:]
             workingBid = self.tradingInterface.OpenBid[-self.strategyParams["rollingMean"]:]
@@ -133,14 +133,17 @@ class MeanReversionDual(AbstractStrategy):
             return dictRet
 
     def _multi_cross_ask_and_bid(self):
+        print('OpBid', self.tradingInterface.OpenBid[-1])
+        print('OpAsk', self.tradingInterface.OpenAsk[-1])
+        print('BBands', self.Bands)
         if self.tradingInterface.OpenBid[-1] > self.Bands['highAsk']:
             WaitingTimer = Timer()
             WaitingTimer.start()
-            while (WaitingTimer.elapsed() // 60) < self.maxCrossingParameter:
-                time.sleep(self.tradingInterface.updatableDataTime)
+            while WaitingTimer.elapsed() < self.maxCrossingParameter:
+                # time.sleep(self.tradingInterface.updatableDataTime)
                 fresh_data = self.tradingInterface.download_actual_dot(density=self.tradingInterface.updatableDataTime)
                 if self.tradingInterface.debug:
-                    print(fresh_data)
+                    print('Inside strat:', fresh_data)
                 self.Bands = self._make_bollinger_bands()
                 if self.tradingInterface.OpenBid[-1] < self.Bands['highAsk']:
                     logTuple = self.tradingInterface.OpenBid[-(int(self.strategyParams['varianceLookBack']) + 1):]
@@ -159,7 +162,7 @@ class MeanReversionDual(AbstractStrategy):
                                                            * self.Bands['AskStd'], 3)
                         WaitingTimer.stop()
                         return openDict
-                if (WaitingTimer.elapsed() // 60) >= self.maxCrossingParameter:
+                if WaitingTimer.elapsed() >= self.maxCrossingParameter:
                     WaitingTimer.stop()
                     del WaitingTimer
                     return f'{self.UnableToOpenLogCross}CantOpenCrossing'
@@ -167,11 +170,11 @@ class MeanReversionDual(AbstractStrategy):
         if self.tradingInterface.OpenAsk[-1] < self.Bands['lowBid']:
             WaitingTimer = Timer()
             WaitingTimer.start()
-            while (WaitingTimer.elapsed() // 60) < self.maxCrossingParameter:
-                time.sleep(self.tradingInterface.updatableDataTime)
+            while WaitingTimer.elapsed() < self.maxCrossingParameter:
+                # time.sleep(self.tradingInterface.updatableDataTime)
                 fresh_data = self.tradingInterface.download_actual_dot(density=self.tradingInterface.updatableDataTime)
                 if self.tradingInterface.debug:
-                    print(fresh_data)
+                    print('Inside strat:', fresh_data)
                 self.Bands = self._make_bollinger_bands()
                 if self.tradingInterface.OpenAsk[-1] > self.Bands['lowBid']:
                     logTuple = self.tradingInterface.OpenAsk[-(int(self.strategyParams['varianceLookBack']) + 1):]
@@ -190,7 +193,7 @@ class MeanReversionDual(AbstractStrategy):
                                                            * self.Bands['BidStd'], 3)
                         WaitingTimer.stop()
                         return openDict
-            if (WaitingTimer.elapsed() // 60) >= self.maxCrossingParameter:
+            if WaitingTimer.elapsed() >= self.maxCrossingParameter:
                 WaitingTimer.stop()
                 del WaitingTimer
                 return f'{self.UnableToOpenLogCross}CantOpenCrossing'
@@ -201,11 +204,11 @@ class MeanReversionDual(AbstractStrategy):
         if self.tradingInterface.OpenMiddle[-1] > self.Bands['highAsk']:
             WaitingTimer = Timer()
             WaitingTimer.start()
-            while (WaitingTimer.elapsed() // 60) < self.maxCrossingParameter:
-                time.sleep(self.tradingInterface.updatableDataTime)
+            while WaitingTimer.elapsed() < self.maxCrossingParameter:
+                # time.sleep(self.tradingInterface.updatableDataTime)
                 fresh_data = self.tradingInterface.download_actual_dot(density=self.tradingInterface.updatableDataTime)
                 if self.tradingInterface.debug:
-                    print(fresh_data)
+                    print('Inside strat:', fresh_data)
                 self.Bands = self._make_bollinger_bands()
                 if self.tradingInterface.OpenMiddle[-1] < self.Bands['highAsk']:
                     logTuple = self.tradingInterface.OpenMiddle[-(int(self.strategyParams['varianceLookBack']) + 1):]
@@ -224,7 +227,7 @@ class MeanReversionDual(AbstractStrategy):
                                                            * self.Bands['AskStd'], 3)
                         WaitingTimer.stop()
                         return openDict
-                if (WaitingTimer.elapsed() // 60) >= self.maxCrossingParameter:
+                if WaitingTimer.elapsed() >= self.maxCrossingParameter:
                     WaitingTimer.stop()
                     del WaitingTimer
                     return f'{self.UnableToOpenLogCross}CantOpenCrossing'
@@ -232,11 +235,11 @@ class MeanReversionDual(AbstractStrategy):
         if self.tradingInterface.OpenMiddle[-1] < self.Bands['lowBid']:
             WaitingTimer = Timer()
             WaitingTimer.start()
-            while (WaitingTimer.elapsed() // 60) < self.maxCrossingParameter:
-                time.sleep(self.tradingInterface.updatableDataTime)
+            while WaitingTimer.elapsed() < self.maxCrossingParameter:
+                # time.sleep(self.tradingInterface.updatableDataTime)
                 fresh_data = self.tradingInterface.download_actual_dot(density=self.tradingInterface.updatableDataTime)
                 if self.tradingInterface.debug:
-                    print(fresh_data)
+                    print('insideStrat:', fresh_data)
                 self.Bands = self._make_bollinger_bands()
                 if self.tradingInterface.OpenMiddle[-1] > self.Bands['lowBid']:
                     logTuple = self.tradingInterface.OpenMiddle[-(int(self.strategyParams['varianceLookBack']) + 1):]
@@ -255,7 +258,7 @@ class MeanReversionDual(AbstractStrategy):
                                                            * self.Bands['BidStd'], 3)
                         WaitingTimer.stop()
                         return openDict
-            if (WaitingTimer.elapsed() // 60) >= self.maxCrossingParameter:
+            if WaitingTimer.elapsed() >= self.maxCrossingParameter:
                 WaitingTimer.stop()
                 del WaitingTimer
                 return f'{self.UnableToOpenLogCross}CantOpenCrossing'
@@ -333,39 +336,29 @@ class MeanReversionDual(AbstractStrategy):
         return f"{self.UnableToOpenLog}no crossing b bands"
 
     def open_trade_ability(self):
-        fresh_data = self.tradingInterface.download_actual_dot(density=self.tradingInterface.updatableDataTime)
-        if self.tradingInterface.debug:
-            print(fresh_data)
-
         self.Bands = self._make_bollinger_bands()
-        while not isinstance(self.Bands, dict):
-            time.sleep(self.tradingInterface.updatableDataTime)
-            fresh_data = self.tradingInterface.download_actual_dot(density=self.tradingInterface.updatableDataTime)
-            if self.tradingInterface.debug:
-                print(fresh_data)
-            self.Bands = self._make_bollinger_bands()
+        if not isinstance(self.Bands, dict):
+            return self.Bands
 
         answer = None
         if (self.openMode == 'multiCrossing') and (self.BBandsMode == 'Ask&Bid'):
             answer = self._multi_cross_ask_and_bid()
-            while not isinstance(answer, dict):
-                time.sleep(self.tradingInterface.updatableDataTime)
-                answer = self._multi_cross_ask_and_bid()
+            if not isinstance(answer, dict):
+                return answer
 
         if (self.openMode == 'multiCrossing') and (self.BBandsMode == 'OnlyOne'):
             answer = self._multi_cross_only_middle()
-            while not isinstance(answer, dict):
-                time.sleep(self.tradingInterface.updatableDataTime)
-                answer = self._multi_cross_only_middle()
+            if not isinstance(answer, dict):
+                return answer
 
         if (self.openMode == 'singleCrossing') and (self.BBandsMode == 'Ask&Bid'):
             answer = self._single_cross_ask_and_bid()
-            while not isinstance(answer, dict):
-                time.sleep(self.tradingInterface.updatableDataTime)
-                answer = self._single_cross_ask_and_bid()
+            if not isinstance(answer, dict):
+                return answer
 
         if (self.openMode == 'singleCrossing') and (self.BBandsMode == 'OnlyOne'):
             answer = self._single_cross_only_middle()
-            while not isinstance(answer, dict):
-                time.sleep(self.tradingInterface.updatableDataTime)
-                answer = self._single_cross_only_middle()
+            if not isinstance(answer, dict):
+                return answer
+
+        return answer
