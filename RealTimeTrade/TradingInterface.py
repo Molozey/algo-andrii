@@ -20,6 +20,10 @@ from typing import Union
 import datetime
 from saxo_openapi.exceptions import OpenAPIError
 
+global DEBUG_MODE
+global Update_log
+global Error_log
+
 
 class TradingInterface:
     @classmethod
@@ -150,10 +154,10 @@ class TradingInterface:
 
             self._cachedCollectedTime = self.Time[-1]
             del history
-            return f'Successfully downloaded last {lookBack}'
+            return f'{Update_log}Successfully downloaded last {lookBack} dotes with last time {self._cachedCollectedTime}'
         else:
             warnings.warn('No brokerInterface plugged')
-            return f"No brokerInterface"
+            return f"{Error_log}No brokerInterface"
 
     def download_actual_dot(self, density, lookBack: int = 1) -> str:
         if (self.updatableDataTime // density != 1) or (self.updatableDataTime % density != 0):
@@ -194,14 +198,17 @@ class TradingInterface:
             self.HighMiddle.append(history.apply(lambda x: (x['HighBid'] + x['HighAsk']) / 2, axis=1).values[0])
             self._cachedCollectedTime = self.Time[-1]
 
-            print(self.Time[-1])
             del _cachedCollectedTime, history
-            return f'Successfully downloaded last {lookBack}'
+            return f'{Update_log}Successfully downloaded fresh dot with time {self.Time[-1]}'
         else:
             raise ModuleNotFoundError('No brokerInterface plugged')
 
 
 if __name__ == '__main__':
+    DEBUG_MODE = True
+    Update_log = "LOG | UPDATE: "
+    Error_log = "LOG | ERROR: "
+
     # initialize
     monkey = TradingInterface(name='monkey', robotConfig='robotConfig.txt', ticker='CHFJPY',
                               requireTokenUpdate=True)
@@ -213,7 +220,13 @@ if __name__ == '__main__':
     # monkey.add_strategy(MeanReversionDual(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
     #                                       BBandsMode='Ask&Bid', openCrossMode='singleCrossing'))
 
-    monkey.download_history_data(60, 100)
-    monkey.download_actual_dot(60, 1)
-    monkey.download_actual_dot(60, 1)
+    historical = monkey.download_history_data(60, 100)
+    if DEBUG_MODE:
+        print(historical)
+    freshData = monkey.download_actual_dot(60, 1)
+    if DEBUG_MODE:
+        print(freshData)
+    freshData = monkey.download_actual_dot(60, 1)
+    if DEBUG_MODE:
+        print(freshData)
 
