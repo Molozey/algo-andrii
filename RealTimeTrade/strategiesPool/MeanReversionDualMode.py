@@ -107,9 +107,10 @@ class MeanReversionDual(AbstractStrategy):
 
             self.strategyParams["rollingMean"] = int(half_time * self.strategyParams['halfToLight'])
             self.strategyParams["fatRollingMean"] = int(self.strategyParams['halfToFat'] * half_time)
-            self.strategyParams["timeBarrier"] = int(half_time * self.strategyParams['halfToTime'])
+            self.strategyParams["timeBarrier"] = int(half_time * self.strategyParams['halfToTime'] *
+                                                     self.tradingInterface.updatableDataTime)
             #
-            self.strategyParams["timeBarrier"] = 2
+            # self.strategyParams["timeBarrier"] = 2
             #
             if self.strategyParams["timeBarrier"] <= 0:
                 self.strategyParams["timeBarrier"] = 1
@@ -377,7 +378,7 @@ class MeanReversionDual(AbstractStrategy):
 
     def _buy_stop(self, openDetails):
         if self.BBandsMode == 'Ask&Bid':
-            if (self.tradingInterface.tradingTimer.elapsed() // 60) > self.strategyParams['timeBarrier']:
+            if (self.tradingInterface.tradingTimer.elapsed()) > self.strategyParams['timeBarrier']:
                 return {'typeHolding': 'endPeriod', 'closePrice': self.tradingInterface.OpenBid[-1]}
 
             if self.tradingInterface.OpenBid[-1] < openDetails['stopLossBorder']:
@@ -404,7 +405,7 @@ class MeanReversionDual(AbstractStrategy):
                     assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
                     if MeanFat > bandMean:
                         if reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
-                                                  timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // 60,
+                                                  timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // self.tradingInterface.updatableDataTime,
                                                   VRstatement=self.waitingToFatMean):
                             self.waitingToFatMean = True
                             return False
@@ -426,7 +427,7 @@ class MeanReversionDual(AbstractStrategy):
                     "logOpenPrice": _log[1:]
                 }
                 if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
-                                              timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // 60,
+                                              timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // self.tradingInterface.updatableDataTime,
                                               VRstatement=self.waitingToFatMean):
                     self.waitingToFatMean = False
                     return False
@@ -434,7 +435,7 @@ class MeanReversionDual(AbstractStrategy):
             return False
 
         if self.BBandsMode == 'OnlyOne':
-            if (self.tradingInterface.tradingTimer.elapsed() // 60) > self.strategyParams['timeBarrier']:
+            if (self.tradingInterface.tradingTimer.elapsed()) > self.strategyParams['timeBarrier']:
                 return {'typeHolding': 'endPeriod', 'closePrice': self.tradingInterface.OpenMiddle[-1]}
 
             if self.tradingInterface.OpenMiddle[-1] < openDetails['stopLossBorder']:
@@ -461,7 +462,7 @@ class MeanReversionDual(AbstractStrategy):
                     assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
                     if MeanFat > bandMean:
                         if reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
-                                                  timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // 60,
+                                                  timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // self.tradingInterface.updatableDataTime,
                                                   VRstatement=self.waitingToFatMean):
                             self.waitingToFatMean = True
                             return False
@@ -483,7 +484,7 @@ class MeanReversionDual(AbstractStrategy):
                     "logOpenPrice": _log[1:]
                 }
                 if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
-                                              timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // 60,
+                                              timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // self.tradingInterface.updatableDataTime,
                                               VRstatement=self.waitingToFatMean):
                     self.waitingToFatMean = False
                     return False
@@ -491,7 +492,7 @@ class MeanReversionDual(AbstractStrategy):
             return False
 
     def _short_stop(self, openDetails):
-        if (self.tradingInterface.tradingTimer.elapsed() // 60) > self.strategyParams['timeBarrier']:
+        if (self.tradingInterface.tradingTimer.elapsed()) > self.strategyParams['timeBarrier']:
             return {'typeHolding': 'endPeriod', 'closePrice': self.tradingInterface.OpenBid[-1]}
         if self.BBandsMode == "Ask&Bid":
             if self.tradingInterface.OpenAsk[-1] > openDetails['stopLossBorder']:
@@ -518,7 +519,7 @@ class MeanReversionDual(AbstractStrategy):
                     assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
                     if MeanFat < bandMean:
                         if reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
-                                                  timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // 60,
+                                                  timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // self.tradingInterface.updatableDataTime,
                                                   VRstatement=self.waitingToFatMean):
                             self.waitingToFatMean = True
                             return False
@@ -540,14 +541,14 @@ class MeanReversionDual(AbstractStrategy):
                     "logOpenPrice": _log[1:]
                 }
                 if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
-                                              timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // 60,
+                                              timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // self.tradingInterface.updatableDataTime,
                                               VRstatement=self.waitingToFatMean):
                     self.waitingToFatMean = False
                     return False
 
             return False
         if self.BBandsMode == 'OnlyOne':
-            if (self.tradingInterface.tradingTimer.elapsed() // 60) > self.strategyParams['timeBarrier']:
+            if (self.tradingInterface.tradingTimer.elapsed()) > self.strategyParams['timeBarrier']:
                 return {'typeHolding': 'endPeriod', 'closePrice': self.tradingInterface.OpenBid[-1]}
 
             if self.tradingInterface.OpenMiddle[-1] > openDetails['stopLossBorder']:
@@ -574,7 +575,7 @@ class MeanReversionDual(AbstractStrategy):
                     assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
                     if MeanFat < bandMean:
                         if reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
-                                                  timeBorderCounter=self._initStrategyParams.tradingTimer.elapsed() // 60,
+                                                  timeBorderCounter=self._initStrategyParams.tradingTimer.elapsed() // self.tradingInterface.updatableDataTime,
                                                   VRstatement=self.waitingToFatMean):
                             self.waitingToFatMean = True
                             return False
@@ -596,7 +597,7 @@ class MeanReversionDual(AbstractStrategy):
                     "logOpenPrice": _log[1:]
                 }
                 if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
-                                              timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // 60,
+                                              timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // self.tradingInterface.updatableDataTime,
                                               VRstatement=self.waitingToFatMean):
                     self.waitingToFatMean = False
                     return False
