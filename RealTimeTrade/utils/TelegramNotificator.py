@@ -25,6 +25,11 @@ class TelegramNotification(AbstractFastNotification):
         while True:
             time.sleep(10)
             LastUpdate = tradingInterface.lastTokenUpdate
+            # print('lastUpdateType:', type(LastUpdate))
+            # print('lastUpdateValue:', LastUpdate)
+            # print(datetime.datetime.now())
+            # print(datetime.datetime.now() - LastUpdate)
+            # print(datetime.timedelta(seconds=tradingInterface.tokenLife // 2).total_seconds())
             if (datetime.datetime.now() - LastUpdate).total_seconds() > \
                     datetime.timedelta(seconds=tradingInterface.tokenLife // 2).total_seconds():
                 LastUpdate = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')

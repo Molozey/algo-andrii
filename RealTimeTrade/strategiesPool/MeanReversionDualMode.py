@@ -50,6 +50,8 @@ class MeanReversionDual(AbstractStrategy):
         self.strategyParams = create_strategy_config(self._initStrategyParams, CAP=self._tradeCapital)
 
         self.Bands = None
+
+        self.waitingToFatMean = False
         pass
 
     def add_trading_interface(self, tradingInterface: availableTradingInterface):
@@ -62,7 +64,8 @@ class MeanReversionDual(AbstractStrategy):
 
             self.strategyParams["rollingMean"] = int(half_time * self.strategyParams['halfToLight'])
             self.strategyParams["fatRollingMean"] = int(self.strategyParams['halfToFat'] * half_time)
-            self.strategyParams["timeBarrier"] = int(half_time * self.strategyParams['halfToTime'])
+            self.strategyParams["timeBarrier"] = int(half_time * self.strategyParams['halfToTime'] *
+                                                     self.tradingInterface.updatableDataTime)
             #
             self.strategyParams["timeBarrier"] = 2
             #
@@ -77,6 +80,7 @@ class MeanReversionDual(AbstractStrategy):
             if (half_time > self.strategyParams['scanHalfTime']) or (half_time < 2):
                 return f'{self.UnableToOpenLog}Unable to calculate BBands because half-time have error value: {half_time}'
 
+            print(half_time)
             workingAsk = self.tradingInterface.OpenAsk[-self.strategyParams["rollingMean"]:]
             workingBid = self.tradingInterface.OpenBid[-self.strategyParams["rollingMean"]:]
 
@@ -266,6 +270,9 @@ class MeanReversionDual(AbstractStrategy):
         return f"{self.UnableToOpenLog}no crossing b bands"
 
     def _single_cross_ask_and_bid(self):
+        print('OpBid', self.tradingInterface.OpenBid[-1])
+        print('OpAsk', self.tradingInterface.OpenAsk[-1])
+        print('BBands', self.Bands)
         if self.tradingInterface.OpenBid[-1] > self.Bands['highAsk']:
             logTuple = self.tradingInterface.OpenBid[-(int(self.strategyParams['varianceLookBack']) + 1):]
             retTuple = np.diff(logTuple)
@@ -287,6 +294,7 @@ class MeanReversionDual(AbstractStrategy):
             retTuple = np.diff(logTuple)
             logTuple = logTuple[1:]
             assert len(retTuple) == len(logTuple)
+            print('VR', variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams))
             if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
                 openDict = dict()
                 openDict['typeOperation'] = 'BUY'
@@ -298,7 +306,7 @@ class MeanReversionDual(AbstractStrategy):
                     self.Bands['lowBid'] - self.strategyParams['stopLossStdMultiplier'] * self.Bands['BidStd'], 3)
                 return openDict
 
-        return f"{self.UnableToOpenLog}no crossing b bands"
+        return f"{self.UnableToOpenLog}no crossing b bands or False VR ratio"
 
     def _single_cross_only_middle(self):
         if self.tradingInterface.OpenMiddle[-1] > self.Bands['highAsk']:
