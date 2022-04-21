@@ -67,7 +67,7 @@ class MeanReversionDual(AbstractStrategy):
             self.strategyParams["timeBarrier"] = int(half_time * self.strategyParams['halfToTime'] *
                                                      self.tradingInterface.updatableDataTime)
             #
-            self.strategyParams["timeBarrier"] = 2
+            # self.strategyParams["timeBarrier"] = 2
             #
             if self.strategyParams["timeBarrier"] <= 0:
                 self.strategyParams["timeBarrier"] = 1
@@ -202,7 +202,7 @@ class MeanReversionDual(AbstractStrategy):
                 del WaitingTimer
                 return f'{self.UnableToOpenLogCross}CantOpenCrossing'
 
-        return f"{self.UnableToOpenLog}no match"
+        return f"{self.UnableToOpenLog}no crossing b bands or False VR ratio"
 
     def _multi_cross_only_middle(self):
         if self.tradingInterface.OpenMiddle[-1] > self.Bands['highAsk']:
@@ -267,12 +267,9 @@ class MeanReversionDual(AbstractStrategy):
                 del WaitingTimer
                 return f'{self.UnableToOpenLogCross}CantOpenCrossing'
 
-        return f"{self.UnableToOpenLog}no crossing b bands"
+        return f"{self.UnableToOpenLog}no crossing b bands or False VR ratio"
 
     def _single_cross_ask_and_bid(self):
-        print('OpBid', self.tradingInterface.OpenBid[-1])
-        print('OpAsk', self.tradingInterface.OpenAsk[-1])
-        print('BBands', self.Bands)
         if self.tradingInterface.OpenBid[-1] > self.Bands['highAsk']:
             logTuple = self.tradingInterface.OpenBid[-(int(self.strategyParams['varianceLookBack']) + 1):]
             retTuple = np.diff(logTuple)
@@ -341,7 +338,7 @@ class MeanReversionDual(AbstractStrategy):
                     self.Bands['lowBid'] - self.strategyParams['stopLossStdMultiplier'] * self.Bands['BidStd'], 3)
                 return openDict
 
-        return f"{self.UnableToOpenLog}no crossing b bands"
+        return f"{self.UnableToOpenLog}no crossing b bands or False VR ratio"
 
     def open_trade_ability(self):
         self.Bands = self._make_bollinger_bands()

@@ -313,6 +313,7 @@ class TradingInterface:
                 self.tradingTimer.stop()
         self.notificator.send_message_to_user(f"Closing:\n{json.dumps(answerHold)}")
         TradeDetails = {**answer, **answerHold}
+        self.statistics_collector.add_trade_line(TradeDetails)
 
     def start_execution(self):
         self.globalTimer.start()
@@ -322,7 +323,8 @@ class TradingInterface:
         if self.debug:
             print(historical)
 
-        self.search_for_trade()
+        while True:
+            self.search_for_trade()
 
 
 if __name__ == '__main__':
