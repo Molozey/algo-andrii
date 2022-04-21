@@ -4,3 +4,4 @@ apiTokenLifeTime,12800
 lastApiTokenUpdate,2022-04-20 06:54:21
 waitingParameter,1200
 maxLookBack,1000
+ordersType,market

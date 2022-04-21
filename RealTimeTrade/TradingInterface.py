@@ -23,7 +23,10 @@ from saxo_openapi.exceptions import OpenAPIError
 global DEBUG_MODE
 global Update_log
 global Error_log
-global Open_log
+global Open_error_log
+global Open_position_log
+global Close_position_log
+global Close_error_log
 
 class TradingInterface:
     @classmethod
@@ -44,6 +47,8 @@ class TradingInterface:
     statistics_collector: availableStatisticsCollectors
     updatableToken: bool
     _cachedCollectedTime: Union[None, datetime.datetime]
+    ordersType: Union[str]
+    AvailableToOpen: bool
 
     def __init__(self, name: str, robotConfig: str,
                  ticker: str, requireTokenUpdate: bool = True):
@@ -60,7 +65,9 @@ class TradingInterface:
         :param requireTokenUpdate should token for broker Interface be updatable
         """
         # Robot name and strategy ticker block
-        self.globalTimer = None
+        self.AvailableToOpen = True
+        self.globalTimer = Timer()
+        self.tradingTimer = Timer()
         self.debug = DEBUG_MODE
         self.name = name
         self.ticker = ticker
@@ -71,6 +78,7 @@ class TradingInterface:
                                       index=self._robotConfig.iloc[0, :])
         self.updatableDataTime = int(self._robotConfig['updateDataTime'])
         self._token = str(self._robotConfig['apiToken'])
+        self.ordersType = str(self._robotConfig['ordersType'])
         # Statistics and fast notificator block
         self.statistics_collector = None
         self.notificator = None
@@ -205,20 +213,74 @@ class TradingInterface:
         else:
             raise ModuleNotFoundError('No brokerInterface plugged')
 
-    def search_for_open(self):
-        answer = None
-        freshData = self.download_actual_dot(self.updatableDataTime)
-        if self.debug:
-            print(freshData)
-        while not isinstance(answer, dict):
-            if self.debug:
-                print(f"{Open_log}{answer}")
-            answer = self.strategy.open_trade_ability()
+    def make_order(self, orderDetails: dict, typePos: str, openDetails: Union[None, dict]) -> str:
+        if self.ordersType == "market":
+            self.brokerInterface.place_order(dict_orders={self.ticker: orderDetails["position"]},
+                                             order_type="market")
+            return f"{Open_position_log}Success with completing order"
+
+        if self.ordersType == "limit":
+            orderMinute = datetime.datetime.now()
+            orderID = self.brokerInterface.place_order(dict_orders={self.ticker: orderDetails["position"]},
+                                                       order_type="limit", order_price=orderDetails["openPrice"])
+            completeOrder = False
+            while True:
+                time.sleep(self._refresherFreshDataTimer)
+                orderStatus = self.brokerInterface.check_order(orderID)
+                if not orderStatus:
+                    completeOrder = True
+                    break
+                if abs((np.datetime64(orderMinute) -
+                        np.datetime64(datetime.datetime.now())) / np.timedelta64(1, 's')) > self.updatableDataTime:
+                    break
+
+            if not completeOrder:
+                return f"{Open_error_log}Unable to complete order"
+            if completeOrder:
+                return f"{Open_position_log}Success with completing order"
+
+    def search_for_trade(self):
+        while self.AvailableToOpen:
+            answer = None
             freshData = self.download_actual_dot(self.updatableDataTime)
             if self.debug:
                 print(freshData)
+            while not isinstance(answer, dict):
+                answer = self.strategy.open_trade_ability()
+                freshData = self.download_actual_dot(self.updatableDataTime)
+                if self.debug:
+                    print(f"{freshData}")
+            if self.debug:
+                print(f'{Open_position_log}{answer}')
 
-        print(answer)
+            openOrderInfo = self.make_order(orderDetails=answer, typePos='open')
+            if not Open_error_log in openOrderInfo:
+                if self.debug:
+                    print(f'{Open_position_log} Success with open trade at execution time: {self.globalTimer.elapsed()}')
+                self.AvailableToOpen = False
+                self.tradingTimer.start()
+
+        while not self.AvailableToOpen:
+            answerHold = None
+            freshData = self.download_actual_dot(self.updatableDataTime)
+            if self.debug:
+                print(freshData)
+            while not isinstance(answerHold, dict):
+                answerHold = self.strategy.close_trade_ability(openDetails=answer)
+                freshData = self.download_actual_dot(self.updatableDataTime)
+                if self.debug:
+                    print(f"{freshData}")
+            if self.debug:
+                print(f"{Close_position_log}{answerHold}")
+
+            closeOrderInfo = self.make_order(orderDetails=answerHold, typePos='close', openDetails=None)
+            if not Close_error_log in closeOrderInfo:
+                if self.debug:
+                    print(f"{Close_position_log} Success with close trade at execution time: {self.globalTimer.elapsed()}")
+                self.AvailableToOpen = True
+                self.tradingTimer.stop()
+
+        TradeDetails = {**answer, **answerHold}
 
     def start_execution(self):
         historical = self.download_history_data(self.updatableDataTime,
@@ -227,15 +289,17 @@ class TradingInterface:
         if self.debug:
             print(historical)
 
-        self.search_for_open()
+        self.search_for_trade()
 
 
 if __name__ == '__main__':
     DEBUG_MODE = True
     Update_log = "LOG | UPDATE: "
     Error_log = "LOG | ERROR: "
-    Open_log = "LOG | Cannot open: "
-
+    Open_error_log = "LOG | Cannot open: "
+    Open_position_log = "LOG | OpenPosition: "
+    Close_position_log = "LOG | ClosePosition: "
+    Close_error_log = "LOG | Cannot close: "
     # initialize
     monkey = TradingInterface(name='monkey', robotConfig='robotConfig.txt', ticker='CHFJPY',
                               requireTokenUpdate=True)

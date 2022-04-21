@@ -362,3 +362,238 @@ class MeanReversionDual(AbstractStrategy):
                 return answer
 
         return answer
+
+    def close_trade_ability(self, openDetails):
+        if openDetails['typeOperation'] == 'SELL':
+            # TODO проверить что openDetails конкретно изменяется в торговом интерфейсе
+            return self._short_stop(openDetails=openDetails)
+        if openDetails['typeOperation'] == 'BUY':
+            return self._buy_stop(openDetails=openDetails)
+
+    def _buy_stop(self, openDetails):
+        if self.BBandsMode == 'Ask&Bid':
+            if (self.tradingInterface.tradingTimer.elapsed() // 60) > self.strategyParams['timeBarrier']:
+                return {'typeHolding': 'endPeriod', 'closePrice': self.tradingInterface.OpenBid[-1]}
+
+            if self.tradingInterface.OpenBid[-1] < openDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self.tradingInterface.OpenBid[-1]}
+            # Block with Trailing StopLoss. This realization is not good. Need to change
+            delta = self.tradingInterface.OpenBid[-1] - self.tradingInterface.OpenBid[-2]
+            if delta > 0:
+                openDetails['stopLossBorder'] = round(openDetails['stopLossBorder'] + delta, 3)
+
+            if self.tradingInterface.OpenBid[-1] < openDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self.tradingInterface.OpenBid[-1]}
+
+            if not self.waitingToFatMean:
+                workingArray = self.tradingInterface.OpenBid[-int(self.strategyParams['rollingMean']):]
+                bandMean = np.mean(workingArray)
+                MeanFat = np.mean(self.tradingInterface.OpenBid[-int(self.strategyParams['fatRollingMean']):])
+                if (self.tradingInterface.OpenBid[-1] > bandMean) and (self.tradingInterface.OpenBid[-2] < bandMean):
+                    _log = self.tradingInterface.OpenBid[-(int(
+                        max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
+                    compute = {
+                        "retOpenPrice": np.diff(_log),
+                        "logOpenPrice": _log[1:]
+                    }
+                    assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
+                    if MeanFat > bandMean:
+                        if reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                                                  timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // 60,
+                                                  VRstatement=self.waitingToFatMean):
+                            self.waitingToFatMean = True
+                            return False
+                        else:
+                            return {'typeHolding': 'lightCross', 'closePrice': bandMean}
+                    else:
+                        return {'typeHolding': 'lightCrossEmergent', 'closePrice': bandMean}
+
+            if self.waitingToFatMean:
+                MeanFat = np.mean(self.tradingInterface.OpenBid[-int(self.strategyParams['fatRollingMean']):])
+                if self.tradingInterface.OpenBid[-1] > MeanFat:
+                    return {'typeHolding': 'fatExtraProfit', 'closePrice': MeanFat}
+
+                _log = self.tradingInterface.OpenBid[
+                       -(int(max(self.strategyParams['varianceLookBack'],
+                                 self.strategyParams['fatRollingMean'])) + 1):]
+                compute = {
+                    "retOpenPrice": np.diff(_log),
+                    "logOpenPrice": _log[1:]
+                }
+                if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                                              timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // 60,
+                                              VRstatement=self.waitingToFatMean):
+                    self.waitingToFatMean = False
+                    return False
+
+            return False
+
+        if self.BBandsMode == 'OnlyOne':
+            if (self.tradingInterface.tradingTimer.elapsed() // 60) > self.strategyParams['timeBarrier']:
+                return {'typeHolding': 'endPeriod', 'closePrice': self.tradingInterface.OpenMiddle[-1]}
+
+            if self.tradingInterface.OpenMiddle[-1] < openDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self.tradingInterface.OpenMiddle[-1]}
+            # Block with Trailing StopLoss. This realization is not good. Need to change
+            delta = self.tradingInterface.OpenMiddle[-1] - self.tradingInterface.OpenMiddle[-2]
+            if delta > 0:
+                openDetails['stopLossBorder'] = round(openDetails['stopLossBorder'] + delta, 3)
+
+            if self.tradingInterface.OpenMiddle[-1] < openDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self.tradingInterface.OpenMiddle[-1]}
+
+            if not self.waitingToFatMean:
+                workingArray = self.tradingInterface.OpenMiddle[-int(self.strategyParams['rollingMean']):]
+                bandMean = np.mean(workingArray)
+                MeanFat = np.mean(self.tradingInterface.OpenMiddle[-int(self.strategyParams['fatRollingMean']):])
+                if (self.tradingInterface.OpenMiddle[-1] > bandMean) and (self.tradingInterface.OpenMiddle[-2] < bandMean):
+                    _log = self.tradingInterface.OpenMiddle[-(int(
+                        max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
+                    compute = {
+                        "retOpenPrice": np.diff(_log),
+                        "logOpenPrice": _log[1:]
+                    }
+                    assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
+                    if MeanFat > bandMean:
+                        if reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                                                  timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // 60,
+                                                  VRstatement=self.waitingToFatMean):
+                            self.waitingToFatMean = True
+                            return False
+                        else:
+                            return {'typeHolding': 'lightCross', 'closePrice': bandMean}
+                    else:
+                        return {'typeHolding': 'lightCrossEmergent', 'closePrice': bandMean}
+
+            if self.waitingToFatMean:
+                MeanFat = np.mean(self.tradingInterface.OpenMiddle[-int(self.strategyParams['fatRollingMean']):])
+                if self.tradingInterface.OpenMiddle[-1] > MeanFat:
+                    return {'typeHolding': 'fatExtraProfit', 'closePrice': MeanFat}
+
+                _log = self.tradingInterface.OpenMiddle[
+                       -(int(max(self.strategyParams['varianceLookBack'],
+                                 self.strategyParams['fatRollingMean'])) + 1):]
+                compute = {
+                    "retOpenPrice": np.diff(_log),
+                    "logOpenPrice": _log[1:]
+                }
+                if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                                              timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // 60,
+                                              VRstatement=self.waitingToFatMean):
+                    self.waitingToFatMean = False
+                    return False
+
+            return False
+
+    def _short_stop(self, openDetails):
+        if (self.tradingInterface.tradingTimer.elapsed() // 60) > self.strategyParams['timeBarrier']:
+            return {'typeHolding': 'endPeriod', 'closePrice': self.tradingInterface.OpenBid[-1]}
+        if self.BBandsMode == "Ask&Bid":
+            if self.tradingInterface.OpenAsk[-1] > openDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self.tradingInterface.OpenAsk[-1]}
+            # Block with Trailing StopLoss. This realization is not good. Need to change
+            delta = self.tradingInterface.OpenAsk[-1] - self.tradingInterface.OpenAsk[-2]
+            if delta < 0:
+                openDetails['stopLossBorder'] = round(openDetails['stopLossBorder'] - delta, 3)
+
+            if self.tradingInterface.OpenAsk[-1] > openDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self.tradingInterface.OpenAsk[-1]}
+
+            if not self.waitingToFatMean:
+                workingArray = self.tradingInterface.OpenAsk[-int(self.strategyParams['rollingMean']):]
+                bandMean = np.mean(workingArray)
+                MeanFat = np.mean(self.tradingInterface.OpenAsk[-int(self.strategyParams['fatRollingMean']):])
+                if (self.tradingInterface.OpenAsk[-1] < bandMean) and (self.tradingInterface.OpenAsk[-2] > bandMean):
+                    _log = self.tradingInterface.OpenAsk[-(int(
+                        max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
+                    compute = {
+                        "retOpenPrice": np.diff(_log),
+                        "logOpenPrice": _log[1:]
+                    }
+                    assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
+                    if MeanFat < bandMean:
+                        if reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                                                  timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // 60,
+                                                  VRstatement=self.waitingToFatMean):
+                            self.waitingToFatMean = True
+                            return False
+                        else:
+                            return {'typeHolding': 'lightCross', 'closePrice': bandMean}
+                    else:
+                        return {'typeHolding': 'lightCrossEmergent', 'closePrice': bandMean}
+
+            if self.waitingToFatMean:
+                MeanFat = np.mean(self.tradingInterface.OpenAsk[-int(self.strategyParams['fatRollingMean']):])
+                if self.tradingInterface.OpenAsk[-1] < MeanFat:
+                    return {'typeHolding': 'fatExtraProfit', 'closePrice': MeanFat}
+
+                _log = self.tradingInterface.OpenAsk[
+                       -(int(max(self.strategyParams['varianceLookBack'],
+                                 self.strategyParams['fatRollingMean'])) + 1):]
+                compute = {
+                    "retOpenPrice": np.diff(_log),
+                    "logOpenPrice": _log[1:]
+                }
+                if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                                              timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // 60,
+                                              VRstatement=self.waitingToFatMean):
+                    self.waitingToFatMean = False
+                    return False
+
+            return False
+        if self.BBandsMode == 'OnlyOne':
+            if (self.tradingInterface.tradingTimer.elapsed() // 60) > self.strategyParams['timeBarrier']:
+                return {'typeHolding': 'endPeriod', 'closePrice': self.tradingInterface.OpenBid[-1]}
+
+            if self.tradingInterface.OpenMiddle[-1] > openDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self.tradingInterface.OpenMiddle[-1]}
+            # Block with Trailing StopLoss. This realization is not good. Need to change
+            delta = self.tradingInterface.OpenMiddle[-1] - self.tradingInterface.OpenMiddle[-2]
+            if delta < 0:
+                openDetails['stopLossBorder'] = round(openDetails['stopLossBorder'] - delta, 3)
+
+            if self.tradingInterface.OpenMiddle[-1] > openDetails['stopLossBorder']:
+                return {'typeHolding': 'stopLoss', 'closePrice': self.tradingInterface.OpenMiddle[-1]}
+
+            if not self.waitingToFatMean:
+                workingArray = self.tradingInterface.OpenMiddle[-int(self.strategyParams['rollingMean']):]
+                bandMean = np.mean(workingArray)
+                MeanFat = np.mean(self.tradingInterface.OpenMiddle[-int(self.strategyParams['fatRollingMean']):])
+                if (self.tradingInterface.OpenMiddle[-1] < bandMean) and (self.tradingInterface.OpenMiddle[-2] > bandMean):
+                    _log = self.tradingInterface.OpenMiddle[-(int(
+                        max(self.strategyParams['varianceLookBack'], self.strategyParams['fatRollingMean'])) + 1):]
+                    compute = {
+                        "retOpenPrice": np.diff(_log),
+                        "logOpenPrice": _log[1:]
+                    }
+                    assert len(compute['retOpenPrice']) == len(compute['logOpenPrice'])
+                    if MeanFat < bandMean:
+                        if reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                                                  timeBorderCounter=self._initStrategyParams.tradingTimer.elapsed() // 60,
+                                                  VRstatement=self.waitingToFatMean):
+                            self.waitingToFatMean = True
+                            return False
+                        else:
+                            return {'typeHolding': 'lightCross', 'closePrice': bandMean}
+                    else:
+                        return {'typeHolding': 'lightCrossEmergent', 'closePrice': bandMean}
+
+            if self.waitingToFatMean:
+                MeanFat = np.mean(self.tradingInterface.OpenMiddle[-int(self.strategyParams['fatRollingMean']):])
+                if self.tradingInterface.OpenMiddle[-1] < MeanFat:
+                    return {'typeHolding': 'fatExtraProfit', 'closePrice': MeanFat}
+
+                _log = self.tradingInterface.OpenMiddle[
+                       -(int(max(self.strategyParams['varianceLookBack'],
+                                 self.strategyParams['fatRollingMean'])) + 1):]
+                compute = {
+                    "retOpenPrice": np.diff(_log),
+                    "logOpenPrice": _log[1:]
+                }
+                if not reverse_variance_ratio(preComputed=compute, params=self.strategyParams,
+                                              timeBorderCounter=self.tradingInterface.tradingTimer.elapsed() // 60,
+                                              VRstatement=self.waitingToFatMean):
+                    self.waitingToFatMean = False
+                    return False
+
+            return False
