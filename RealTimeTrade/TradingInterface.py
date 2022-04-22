@@ -14,6 +14,7 @@ from RealTimeTrade.utils.timerModule import *
 from RealTimeTrade.utils.utils import *
 from RealTimeTrade.utils.TelegramNotificator import *
 from RealTimeTrade.strategiesPool.MeanReversionDualMode import *
+from RealTimeTrade.utils.statCollectorModule import PandasStatCollector
 
 import pandas as pd
 import numpy as np
@@ -277,9 +278,10 @@ class TradingInterface:
             while not isinstance(answer, dict):
                 answer = self.strategy.open_trade_ability()
                 print(answer)
-                freshData = self.download_actual_dot(self.updatableDataTime)
-                if self.debug:
-                    print(f"{freshData}")
+                if not isinstance(answer, dict):
+                    freshData = self.download_actual_dot(self.updatableDataTime)
+                    if self.debug:
+                        print(f"{freshData}")
             if self.debug:
                 print(f'{Open_position_log}{answer}')
 
@@ -299,9 +301,10 @@ class TradingInterface:
                 print(freshData)
             while not isinstance(answerHold, dict):
                 answerHold = self.strategy.close_trade_ability(openDetails=answer)
-                freshData = self.download_actual_dot(self.updatableDataTime)
-                if self.debug:
-                    print(f"{freshData}")
+                if not isinstance(answerHold, dict):
+                    freshData = self.download_actual_dot(self.updatableDataTime)
+                    if self.debug:
+                        print(f"{freshData}")
             if self.debug:
                 print(f"{Close_position_log}{answerHold}")
 
@@ -313,7 +316,9 @@ class TradingInterface:
                 self.tradingTimer.stop()
         self.notificator.send_message_to_user(f"Closing:\n{json.dumps(answerHold)}")
         TradeDetails = {**answer, **answerHold}
-        self.statistics_collector.add_trade_line(TradeDetails)
+
+        if self.statistics_collector is not None:
+            self.statistics_collector.add_trade_line(TradeDetails)
 
     def start_execution(self):
         self.globalTimer.start()
@@ -338,6 +343,8 @@ if __name__ == '__main__':
     # initialize
     monkey = TradingInterface(name='monkey', robotConfig='robotConfig.txt', ticker='CHFJPY',
                               requireTokenUpdate=True)
+    # add collector
+    monkey.add_statistics_collector(PandasStatCollector(fileToSave='stat.csv'))
     # add saxo interface
     monkey.add_broker_interface(SaxoOrderInterface(monkey.get_token))
     # add telegram notificator

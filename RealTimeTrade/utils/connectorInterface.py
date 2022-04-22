@@ -16,7 +16,6 @@ import json
 import datetime
 import urllib
 import requests
-from RealTimeTrade.utils.saxoToolKit import *
 
 class AbstractOrderInterface:
     def __init__(self):

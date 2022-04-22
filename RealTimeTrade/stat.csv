@@ -1,0 +1,4 @@
+,typeOperation,position,openPrice,openTime,stopLossBorder,typeHolding,closePrice
+0,SELL,-100000,135.016,13.493696616,140.932,lightCrossEmergent,134.94570247933885
+1,SELL,-100000,135.055,558.1557031,142.525,lightCrossEmergent,135.1386235294118
+2,BUY,100000,135.055,5596.915635716,127.932,lightCrossEmergent,135.1312872340426

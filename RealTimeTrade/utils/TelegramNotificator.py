@@ -6,7 +6,8 @@ import datetime
 import time
 
 
-user_dict = {'249910303': 'Andrii'}
+user_dict_token = {'249910303': 'Andrii'}
+user_dict_messages = {'249910303': 'Andrii'}
 
 
 class AbstractFastNotification(ABC):
@@ -45,14 +46,15 @@ class TelegramNotification(AbstractFastNotification):
 
         @self.bot.message_handler(content_types='text')
         def message_reply(message, inside=self):
-            inside.bot.send_message(message.chat.id, 'Saved Token')
-            inside.TOKEN_SAVER = message.text
-            # print('TKN', self.TOKEN_SAVER)
-            self.bot.stop_polling()
+            if message.chat.id in [*user_dict_token]:
+                inside.bot.send_message(message.chat.id, 'Saved Token')
+                inside.TOKEN_SAVER = message.text
+                # print('TKN', self.TOKEN_SAVER)
+                self.bot.stop_polling()
             # print('Stop polling')
 
     def make_token_request_message(self):
-        for chatId, name in user_dict.items():
+        for chatId, name in user_dict_token.items():
             # print('Send message to:', name)
             self.bot.send_message(chatId, 'Please send a message with token')
             # self.bot.polling(True)
@@ -62,7 +64,7 @@ class TelegramNotification(AbstractFastNotification):
         # print('Polled')
 
     def send_message_to_user(self, message):
-        for chatId, name in user_dict.items():
+        for chatId, name in user_dict_messages.items():
             self.bot.send_message(chatId, f"""message for {name}:\n{message}""")
 
 
