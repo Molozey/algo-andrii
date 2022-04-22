@@ -8,13 +8,27 @@ class MeanReversionDual:
     pass
 
 
+class EmptyDebugStrategy:
+    pass
+
 from RealTimeTrade.TradingInterface import TradingInterface
 from RealTimeTrade.utils.utils import *
 from RealTimeTrade.utils.timerModule import Timer
 
 
 class AbstractStrategy(ABC):
-    pass
+    @abstractmethod
+    def open_trade_ability(self):
+        pass
+
+    @abstractmethod
+    def close_trade_ability(self, openDetails):
+        pass
+
+    @abstractmethod
+    def add_trading_interface(self, tradingInterface):
+        pass
+
 
 
 class MeanReversionDual(AbstractStrategy):
@@ -603,3 +617,47 @@ class MeanReversionDual(AbstractStrategy):
                     return False
 
             return False
+
+
+class EmptyDebugStrategy(AbstractStrategy):
+    def __init__(self, strategyConfigPath: str, strategyModePath: str):
+        super(EmptyDebugStrategy, self).__init__()
+        self._tradeCapital = 100_000
+
+        self.tradingInterface = None
+
+        mode = pd.read_csv(strategyModePath, header=None).T
+        mode = pd.Series(data=mode.iloc[1, :].values,
+                                             index=mode.iloc[0, :])
+        self.openMode = mode['OpenCrossingMode']
+        self.BBandsMode = mode['BBandsMode']
+        self.maxCrossingParameter = int(mode['waitingParameter'])
+        del mode
+
+        self._initStrategyParams = pd.read_csv(strategyConfigPath, header=None).T
+        self._initStrategyParams = pd.Series(data=self._initStrategyParams.iloc[1, :].values,
+                                             index=self._initStrategyParams.iloc[0, :])
+
+        self.strategyParams = create_strategy_config(self._initStrategyParams, CAP=self._tradeCapital)
+
+        self.Bands = None
+
+        self.waitingToFatMean = False
+        pass
+
+    def open_trade_ability(self):
+        openDict = dict()
+        openDict['typeOperation'] = 'BUY'
+        # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
+        openDict['position'] = int(round(self._tradeCapital))
+        openDict['openPrice'] = self.tradingInterface.OpenMiddle[-1]
+        openDict['openTime'] = self.tradingInterface.globalTimer.elapsed()
+        openDict['stopLossBorder'] = self.tradingInterface.OpenMiddle[-1] - 20
+
+        return openDict
+
+    def close_trade_ability(self, openDetails):
+        return {'typeHolding': 'endPeriod', 'closePrice': self.tradingInterface.OpenMiddle[-1]}
+
+    def add_trading_interface(self, tradingInterface):
+        self.tradingInterface = tradingInterface

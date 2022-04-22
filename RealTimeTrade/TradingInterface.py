@@ -40,7 +40,7 @@ class TradingInterface:
 
     availableBrokerInterface = Union[None, SaxoOrderInterface, AbstractOrderInterface]
     availableNotificator = Union[None, TelegramNotification]
-    availableStrategies = Union[None, MeanReversionDual]
+    availableStrategies = Union[None, MeanReversionDual, EmptyDebugStrategy]
     availableStatisticsCollectors = Union[None, PandasStatCollector]
 
     brokerInterface: availableBrokerInterface
@@ -73,6 +73,8 @@ class TradingInterface:
         self.debug = DEBUG_MODE
         self.name = name
         self.ticker = ticker
+
+        self.InPosition = False
         # Config block
         self._configPath = robotConfig
         self._robotConfig = pd.read_csv(robotConfig, header=None).T
@@ -108,6 +110,7 @@ class TradingInterface:
 
         # Inside settings
         self._refresherFreshDataTimer = 1
+        self._refresherOrderTimer = 5
 
         # Inside config logic
         if self.updatableToken:
@@ -229,14 +232,16 @@ class TradingInterface:
                                                            order_type="limit", order_price=orderDetails["openPrice"])
                 completeOrder = False
                 while True:
-                    time.sleep(self._refresherFreshDataTimer)
+                    time.sleep(self._refresherOrderTimer)
                     orderStatus = self.brokerInterface.check_order(orderID['OrderId'])
+                    print('OPEN:', orderStatus)
                     if not orderStatus:
                         completeOrder = True
                         break
-                    if abs((np.datetime64(orderMinute) -
-                            np.datetime64(datetime.datetime.now())) / np.timedelta64(1, 's')) > self.updatableDataTime:
+                    if abs((orderMinute.minute -
+                            datetime.datetime.now().minute)) >= (self.updatableDataTime // 60):
                         self.brokerInterface.cancelOrder(orderID['OrderId'])
+                        # time.sleep(self._refresherOrderTimer)
                         break
 
                 if not completeOrder:
@@ -256,23 +261,26 @@ class TradingInterface:
                                                            order_type="limit", order_price=orderDetails["closePrice"])
                 completeOrder = False
                 while True:
-                    time.sleep(self._refresherFreshDataTimer)
+                    time.sleep(self._refresherOrderTimer)
                     orderStatus = self.brokerInterface.check_order(orderID['OrderId'])
+                    print('CLOSE:', orderStatus)
                     if not orderStatus:
                         completeOrder = True
                         break
-                    if abs((np.datetime64(orderMinute) -
-                            np.datetime64(datetime.datetime.now())) / np.timedelta64(1, 's')) > self.updatableDataTime:
+                    if abs((orderMinute.minute -
+                            datetime.datetime.now().minute)) >= (self.updatableDataTime // 60):
                         self.brokerInterface.cancelOrder(orderID['OrderId'])
+                        # time.sleep(self._refresherOrderTimer)
                         break
 
                 if not completeOrder:
-                    return f"{Open_error_log}Unable to complete order"
+                    return f"{Close_error_log}Unable to complete order"
                 if completeOrder:
-                    return f"{Open_position_log}Success with completing order"
+                    return f"{Close_position_log}Success with completing order"
 
     def search_for_trade(self):
-        while self.AvailableToOpen:
+        self.AvailableToOpen = True
+        while not self.InPosition:
             answer = None
             freshData = self.download_actual_dot(self.updatableDataTime)
             if self.debug:
@@ -285,19 +293,21 @@ class TradingInterface:
                     if self.debug:
                         print(f"{freshData}")
             if self.debug:
-                print(f'{Open_position_log}{answer}')
+                print(f'Try {Open_position_log}{answer}')
 
             openOrderInfo = self.make_order(orderDetails=answer, typePos='open', openDetails=None)
-            if not Open_error_log in openOrderInfo:
+            print(openOrderInfo)
+            if Open_error_log not in openOrderInfo:
                 if self.debug:
                     print(f'{Open_position_log} Success with open trade at execution time: {self.globalTimer.elapsed()}')
-                self.AvailableToOpen = False
+                self.InPosition = True
                 self.tradingTimer.start()
 
         if self.notificator is not None:
             self.notificator.send_message_to_user(f"Opening:\n{json.dumps(answer)}")
 
-        while not self.AvailableToOpen:
+        # TODO fix multi-opening
+        while self.InPosition:
             answerHold = None
             freshData = self.download_actual_dot(self.updatableDataTime)
             if self.debug:
@@ -312,16 +322,22 @@ class TradingInterface:
                 print(f"{Close_position_log}{answerHold}")
 
             closeOrderInfo = self.make_order(orderDetails=answerHold, typePos='close', openDetails=answer)
-            if not Close_error_log in closeOrderInfo:
+            if Close_error_log not in closeOrderInfo:
                 if self.debug:
                     print(f"{Close_position_log} Success with close trade at execution time: {self.globalTimer.elapsed()}")
-                self.AvailableToOpen = True
+                self.InPosition = False
                 self.tradingTimer.stop()
-        self.notificator.send_message_to_user(f"Closing:\n{json.dumps(answerHold)}")
+
         TradeDetails = {**answer, **answerHold}
+        if self.notificator is not None:
+            self.notificator.send_message_to_user(f"Closing:\n{json.dumps(answerHold)}")
+            self.notificator.send_message_to_user(f"=====================")
+            self.notificator.send_message_to_user(f"{json.dumps(TradeDetails)}")
+            self.notificator.send_message_to_user(f"=====================")
 
         if self.statistics_collector is not None:
             self.statistics_collector.add_trade_line(TradeDetails)
+
 
     def start_execution(self):
         self.globalTimer.start()
@@ -336,7 +352,7 @@ class TradingInterface:
 
 
 if __name__ == '__main__':
-    DEBUG_MODE = True
+    DEBUG_MODE = False
     Update_log = "LOG | UPDATE: "
     Error_log = "LOG | ERROR: "
     Open_error_log = "LOG | Cannot open: "
@@ -355,8 +371,9 @@ if __name__ == '__main__':
     # add strategy rules
     monkey.add_strategy(MeanReversionDual(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
                                           strategyModePath='strategiesPool/DualMeanConfig.txt'))
-
+    # monkey.add_strategy(EmptyDebugStrategy(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
+    #                                        strategyModePath='strategiesPool/DualMeanConfig.txt'))
     monkey.strategy.add_trading_interface(monkey)
-    # monkey.start_execution()
-    print(monkey.make_order(orderDetails={"position": 100_000, "openPrice": 134.425}, typePos="open", openDetails=None))
+    monkey.start_execution()
+    # print(monkey.make_order(orderDetails={"position": 100_000, "openPrice": 134.425}, typePos="open", openDetails=None))
 
