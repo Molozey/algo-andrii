@@ -230,12 +230,13 @@ class TradingInterface:
                 completeOrder = False
                 while True:
                     time.sleep(self._refresherFreshDataTimer)
-                    orderStatus = self.brokerInterface.check_order(orderID)
+                    orderStatus = self.brokerInterface.check_order(orderID['OrderId'])
                     if not orderStatus:
                         completeOrder = True
                         break
                     if abs((np.datetime64(orderMinute) -
                             np.datetime64(datetime.datetime.now())) / np.timedelta64(1, 's')) > self.updatableDataTime:
+                        self.brokerInterface.cancelOrder(orderID['OrderId'])
                         break
 
                 if not completeOrder:
@@ -256,12 +257,13 @@ class TradingInterface:
                 completeOrder = False
                 while True:
                     time.sleep(self._refresherFreshDataTimer)
-                    orderStatus = self.brokerInterface.check_order(orderID)
+                    orderStatus = self.brokerInterface.check_order(orderID['OrderId'])
                     if not orderStatus:
                         completeOrder = True
                         break
                     if abs((np.datetime64(orderMinute) -
                             np.datetime64(datetime.datetime.now())) / np.timedelta64(1, 's')) > self.updatableDataTime:
+                        self.brokerInterface.cancelOrder(orderID['OrderId'])
                         break
 
                 if not completeOrder:
@@ -292,7 +294,8 @@ class TradingInterface:
                 self.AvailableToOpen = False
                 self.tradingTimer.start()
 
-        self.notificator.send_message_to_user(f"Opening:\n{json.dumps(answer)}")
+        if self.notificator is not None:
+            self.notificator.send_message_to_user(f"Opening:\n{json.dumps(answer)}")
 
         while not self.AvailableToOpen:
             answerHold = None
@@ -354,5 +357,6 @@ if __name__ == '__main__':
                                           strategyModePath='strategiesPool/DualMeanConfig.txt'))
 
     monkey.strategy.add_trading_interface(monkey)
-    monkey.start_execution()
+    # monkey.start_execution()
+    print(monkey.make_order(orderDetails={"position": 100_000, "openPrice": 134.425}, typePos="open", openDetails=None))
 

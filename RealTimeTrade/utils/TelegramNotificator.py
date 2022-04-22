@@ -44,9 +44,15 @@ class TelegramNotification(AbstractFastNotification):
         self.bot = telebot.TeleBot(API_TOKEN)
         del API_TOKEN
 
+        @self.bot.message_handler(commands=['start'])
+        def start_message(message):
+            self.bot.send_message(message.chat.id, """This bot can send for you information about
+            all trades. Also it can give you ability to change brokerToken. For this access please
+            contact Andrii""")
+
         @self.bot.message_handler(content_types='text')
         def message_reply(message, inside=self):
-            if message.chat.id in [*user_dict_token]:
+            if str(message.chat.id) in [*user_dict_token]:
                 inside.bot.send_message(message.chat.id, 'Saved Token')
                 inside.TOKEN_SAVER = message.text
                 # print('TKN', self.TOKEN_SAVER)
@@ -91,3 +97,8 @@ class TelegramNotification(AbstractFastNotification):
 #             print('Curent time:', datetime.datetime.now().minute)
 #     thPrinter = Thread(target=printer, args=()).start()
 #     # token_request_echo(bot)
+
+
+if __name__ == "__main__":
+    bot = TelegramNotification()
+    bot.bot.polling(True)
