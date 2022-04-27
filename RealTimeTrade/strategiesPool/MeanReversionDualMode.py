@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Union
 import pandas as pd
 import time
-
+from datetime import datetime
 
 class MeanReversionDual:
     pass
@@ -152,9 +152,6 @@ class MeanReversionDual(AbstractStrategy):
             return dictRet
 
     def _multi_cross_ask_and_bid(self):
-        print('OpBid', self.tradingInterface.OpenBid[-1])
-        print('OpAsk', self.tradingInterface.OpenAsk[-1])
-        print('BBands', self.Bands)
         if self.tradingInterface.OpenBid[-1] > self.Bands['highAsk']:
             WaitingTimer = Timer()
             WaitingTimer.start()
@@ -171,6 +168,7 @@ class MeanReversionDual(AbstractStrategy):
                     assert len(retTuple) == len(logTuple)
                     if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
                         openDict = dict()
+                        openDict['TimeOpen'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         openDict['typeOperation'] = 'SELL'
                         # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
                         openDict['position'] = - int(round(self._tradeCapital))
@@ -179,6 +177,11 @@ class MeanReversionDual(AbstractStrategy):
                         openDict['stopLossBorder'] = round(self.Bands['highAsk'] +
                                                            self.strategyParams['stopLossStdMultiplier']
                                                            * self.Bands['AskStd'], 3)
+                        openDict['halfTime'] = self.Bands['halfTime']
+                        openDict['varianceRatioOpen'] = variance_ratio(logTuple=tuple(logTuple),
+                                                                       retTuple=retTuple,
+                                                                       params=self.strategyParams,
+                                                                       extend_info=True)[0]
                         WaitingTimer.stop()
                         return openDict
                 if WaitingTimer.elapsed() >= self.maxCrossingParameter:
@@ -202,6 +205,7 @@ class MeanReversionDual(AbstractStrategy):
                     assert len(retTuple) == len(logTuple)
                     if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
                         openDict = dict()
+                        openDict['TimeOpen'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         openDict['typeOperation'] = 'BUY'
                         # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
                         openDict['position'] = int(round(self._tradeCapital))
@@ -210,6 +214,11 @@ class MeanReversionDual(AbstractStrategy):
                         openDict['stopLossBorder'] = round(self.Bands['lowBid'] -
                                                            self.strategyParams['stopLossStdMultiplier']
                                                            * self.Bands['BidStd'], 3)
+                        openDict['halfTime'] = self.Bands['halfTime']
+                        openDict['varianceRatioOpen'] = variance_ratio(logTuple=tuple(logTuple),
+                                                                       retTuple=retTuple,
+                                                                       params=self.strategyParams,
+                                                                       extend_info=True)[0]
                         WaitingTimer.stop()
                         return openDict
             if WaitingTimer.elapsed() >= self.maxCrossingParameter:
@@ -236,6 +245,7 @@ class MeanReversionDual(AbstractStrategy):
                     assert len(retTuple) == len(logTuple)
                     if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
                         openDict = dict()
+                        openDict['TimeOpen'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         openDict['typeOperation'] = 'SELL'
                         # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
                         openDict['position'] = - int(round(self._tradeCapital))
@@ -244,6 +254,11 @@ class MeanReversionDual(AbstractStrategy):
                         openDict['stopLossBorder'] = round(self.Bands['highAsk'] +
                                                            self.strategyParams['stopLossStdMultiplier']
                                                            * self.Bands['AskStd'], 3)
+                        openDict['halfTime'] = self.Bands['halfTime']
+                        openDict['varianceRatioOpen'] = variance_ratio(logTuple=tuple(logTuple),
+                                                                       retTuple=retTuple,
+                                                                       params=self.strategyParams,
+                                                                       extend_info=True)[0]
                         WaitingTimer.stop()
                         return openDict
                 if WaitingTimer.elapsed() >= self.maxCrossingParameter:
@@ -267,6 +282,7 @@ class MeanReversionDual(AbstractStrategy):
                     assert len(retTuple) == len(logTuple)
                     if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
                         openDict = dict()
+                        openDict['TimeOpen'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         openDict['typeOperation'] = 'BUY'
                         # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
                         openDict['position'] = int(round(self._tradeCapital))
@@ -275,6 +291,11 @@ class MeanReversionDual(AbstractStrategy):
                         openDict['stopLossBorder'] = round(self.Bands['lowBid'] -
                                                            self.strategyParams['stopLossStdMultiplier']
                                                            * self.Bands['BidStd'], 3)
+                        openDict['halfTime'] = self.Bands['halfTime']
+                        openDict['varianceRatioOpen'] = variance_ratio(logTuple=tuple(logTuple),
+                                                                       retTuple=retTuple,
+                                                                       params=self.strategyParams,
+                                                                       extend_info=True)[0]
                         WaitingTimer.stop()
                         return openDict
             if WaitingTimer.elapsed() >= self.maxCrossingParameter:
@@ -292,6 +313,7 @@ class MeanReversionDual(AbstractStrategy):
             assert len(retTuple) == len(logTuple)
             if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
                 openDict = dict()
+                openDict['TimeOpen'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 openDict['typeOperation'] = 'SELL'
                 # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
                 openDict['position'] = - int(round(self._tradeCapital))
@@ -299,6 +321,11 @@ class MeanReversionDual(AbstractStrategy):
                 openDict['openTime'] = self.tradingInterface.globalTimer.elapsed()
                 openDict['stopLossBorder'] = round(
                     self.Bands['highAsk'] + self.strategyParams['stopLossStdMultiplier'] * self.Bands['AskStd'], 3)
+                openDict['halfTime'] = self.Bands['halfTime']
+                openDict['varianceRatioOpen'] = variance_ratio(logTuple=tuple(logTuple),
+                                                               retTuple=retTuple,
+                                                               params=self.strategyParams,
+                                                               extend_info=True)[0]
                 return openDict
 
         if self.tradingInterface.OpenAsk[-1] < self.Bands['lowBid']:
@@ -309,6 +336,7 @@ class MeanReversionDual(AbstractStrategy):
             print('VR', variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams))
             if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
                 openDict = dict()
+                openDict['TimeOpen'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 openDict['typeOperation'] = 'BUY'
                 # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
                 openDict['position'] = int(round(self._tradeCapital))
@@ -316,6 +344,11 @@ class MeanReversionDual(AbstractStrategy):
                 openDict['openTime'] = self.tradingInterface.globalTimer.elapsed()
                 openDict['stopLossBorder'] = round(
                     self.Bands['lowBid'] - self.strategyParams['stopLossStdMultiplier'] * self.Bands['BidStd'], 3)
+                openDict['halfTime'] = self.Bands['halfTime']
+                openDict['varianceRatioOpen'] = variance_ratio(logTuple=tuple(logTuple),
+                                                               retTuple=retTuple,
+                                                               params=self.strategyParams,
+                                                               extend_info=True)[0]
                 return openDict
 
         return f"{self.UnableToOpenLog}no crossing b bands or False VR ratio"
@@ -328,6 +361,7 @@ class MeanReversionDual(AbstractStrategy):
             assert len(retTuple) == len(logTuple)
             if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
                 openDict = dict()
+                openDict['TimeOpen'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 openDict['typeOperation'] = 'SELL'
                 # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
                 openDict['position'] = - int(round(self._tradeCapital))
@@ -335,6 +369,11 @@ class MeanReversionDual(AbstractStrategy):
                 openDict['openTime'] = self.tradingInterface.globalTimer.elapsed()
                 openDict['stopLossBorder'] = round(
                     self.Bands['highAsk'] + self.strategyParams['stopLossStdMultiplier'] * self.Bands['AskStd'], 3)
+                openDict['halfTime'] = self.Bands['halfTime']
+                openDict['varianceRatioOpen'] = variance_ratio(logTuple=tuple(logTuple),
+                                                               retTuple=retTuple,
+                                                               params=self.strategyParams,
+                                                               extend_info=True)[0]
                 return openDict
 
         if self.tradingInterface.OpenMiddle[-1] < self.Bands['lowBid']:
@@ -344,6 +383,7 @@ class MeanReversionDual(AbstractStrategy):
             assert len(retTuple) == len(logTuple)
             if variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=self.strategyParams):
                 openDict = dict()
+                openDict['TimeOpen'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 openDict['typeOperation'] = 'BUY'
                 # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
                 openDict['position'] = int(round(self._tradeCapital))
@@ -351,6 +391,11 @@ class MeanReversionDual(AbstractStrategy):
                 openDict['openTime'] = self.tradingInterface.globalTimer.elapsed()
                 openDict['stopLossBorder'] = round(
                     self.Bands['lowBid'] - self.strategyParams['stopLossStdMultiplier'] * self.Bands['BidStd'], 3)
+                openDict['halfTime'] = self.Bands['halfTime']
+                openDict['varianceRatioOpen'] = variance_ratio(logTuple=tuple(logTuple),
+                                                               retTuple=retTuple,
+                                                               params=self.strategyParams,
+                                                               extend_info=True)[0]
                 return openDict
 
         return f"{self.UnableToOpenLog}no crossing b bands or False VR ratio"
@@ -386,9 +431,15 @@ class MeanReversionDual(AbstractStrategy):
     def close_trade_ability(self, openDetails):
         if openDetails['typeOperation'] == 'SELL':
             # TODO проверить что openDetails конкретно изменяется в торговом интерфейсе
-            return self._short_stop(openDetails=openDetails)
+            closeDict = self._short_stop(openDetails=openDetails)
+            if not isinstance(closeDict, bool):
+                closeDict['CloseTime'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            return closeDict
         if openDetails['typeOperation'] == 'BUY':
-            return self._buy_stop(openDetails=openDetails)
+            closeDict = self._buy_stop(openDetails=openDetails)
+            if not isinstance(closeDict, bool):
+                closeDict['CloseTime'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            return closeDict
 
     def _buy_stop(self, openDetails):
         if self.BBandsMode == 'Ask&Bid':
@@ -647,6 +698,7 @@ class EmptyDebugStrategy(AbstractStrategy):
 
     def open_trade_ability(self):
         openDict = dict()
+        openDict['TimeOpen'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         openDict['typeOperation'] = 'BUY'
         # openDict['position'] = int(round(self._tradeCapital / lowBand, 3))
         openDict['position'] = int(round(self._tradeCapital))
@@ -657,7 +709,8 @@ class EmptyDebugStrategy(AbstractStrategy):
         return openDict
 
     def close_trade_ability(self, openDetails):
-        return {'typeHolding': 'endPeriod', 'closePrice': self.tradingInterface.OpenMiddle[-1]}
+        return {'typeHolding': 'endPeriod', 'closePrice': self.tradingInterface.OpenMiddle[-1],
+                'CloseTime': datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
     def add_trading_interface(self, tradingInterface):
         self.tradingInterface = tradingInterface

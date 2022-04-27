@@ -40,7 +40,9 @@ class TelegramNotification(AbstractFastNotification):
     def __init__(self):
         self.TOKEN_SAVER = None
 
-        API_TOKEN = '5331091759:AAExx0cPRkGehwxPDg9LvLqhi1HBW1PDopY'
+        # API_TOKEN = '5331091759:AAExx0cPRkGehwxPDg9LvLqhi1HBW1PDopY'
+        API_TOKEN = "5386152772:AAE6Oipk2tYAYJgPi-AVgqO_7WjlpvSyez4"
+
         self.bot = telebot.TeleBot(API_TOKEN)
         del API_TOKEN
 
@@ -49,6 +51,7 @@ class TelegramNotification(AbstractFastNotification):
             self.bot.send_message(message.chat.id, """This bot can send for you information about
             all trades. Also it can give you ability to change brokerToken. For this access please
             contact Andrii""")
+            print(message.chat.id)
 
         @self.bot.message_handler(content_types='text')
         def message_reply(message, inside=self):

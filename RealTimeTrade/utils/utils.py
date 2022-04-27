@@ -2,6 +2,7 @@
 import pandas as pd
 from sklearn import linear_model
 import numpy as np
+from typing import Union, List
 
 
 def get_half_time(openTuple: pd.Series) -> float:
@@ -76,10 +77,12 @@ def create_strategy_config(params, CAP):
     return retParams
 
 
-def variance_ratio(logTuple: tuple, retTuple: tuple, params: dict) -> bool:
+def variance_ratio(logTuple: tuple, retTuple: tuple, params: dict,
+                   extend_info: bool = False) -> Union[bool, list[float, bool]]:
     """
     Функция для open. Здесь лаг q зависит только от гиперпараметра
     Возвращает значение variacne ratio. Необходимо для понимания того, можно ли открывать сделку
+    :param extend_info: adding to return float of varianceRatio
     :param logTuple: tuple из цен открытия включая проверяемую точку
     :param retTuple: tuple из цен открытия включая проверяемую точку
     :param params: список параметров из create_grid
@@ -102,14 +105,22 @@ def variance_ratio(logTuple: tuple, retTuple: tuple, params: dict) -> bool:
 
     result = (sigma_b / sigma_a)
     if result < params['varianceRatioFilter']:
-        return True
+        if not extend_info:
+            return True
+        if extend_info:
+            return [result, True]
     else:
-        return False
+        if not extend_info:
+            return False
+        if extend_info:
+            return [result, False]
 
 
-def reverse_variance_ratio(preComputed, params: dict, timeBorderCounter: int, VRstatement=False) -> bool:
+def reverse_variance_ratio(preComputed, params: dict, timeBorderCounter: int, VRstatement=False,
+                           extend_info: bool = False) -> Union[bool, list[float, bool]]:
     """
     Возвращает значение variance ratio. Необходимо для понимания того, можно ли открывать сделку
+    :param extend_info: adding to return float of varianceRatio
     :param preComputed: Заранее просчитанные логарифмы и возвраты
     :param params: список параметров из create_grid
     :param timeBorderCounter: Штука показывающая сколько мы находимся в сделке
@@ -133,14 +144,26 @@ def reverse_variance_ratio(preComputed, params: dict, timeBorderCounter: int, VR
             result = (sigma_b / sigma_a)
             if not VRstatement:
                 if result > params['reverseVarianceRatioFilter']:
-                    return True
+                    if not extend_info:
+                        return True
+                    if extend_info:
+                        return [result, True]
                 else:
-                    return False
+                    if not extend_info:
+                        return False
+                    if extend_info:
+                        return [result, False]
             if VRstatement:
                 if result < params['varianceRatioFilter']:
-                    return True
+                    if not extend_info:
+                        return True
+                    if extend_info:
+                        return [result, True]
                 else:
-                    return False
+                    if not extend_info:
+                        return False
+                    if extend_info:
+                        return [result, False]
         else:
             return False
 

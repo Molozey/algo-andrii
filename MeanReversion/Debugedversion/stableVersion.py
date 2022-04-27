@@ -619,7 +619,7 @@ def _estimator(_DATAFRAME, _gridParams: dict):
 
 
 def strategy_real_time_optimize(realTimeData, parameters, savePath: str, show=True, update=False):
-    JOI_PARAMETER = 15
+    JOI_PARAMETER = 2
     SL = int(realTimeData.shape[0] // OPTIMIZESIMPLIFIER)
     paramsEvolution = list()
     RealTimeOptimizeTrades = list()

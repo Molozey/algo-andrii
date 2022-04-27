@@ -15,11 +15,12 @@ class StatCollector:
 
 class PandasStatCollector(StatCollector):
 
-    def __init__(self, fileToSave, header=0, sep=','):
+    def __init__(self, fileToSave, detailsPath, header=0, sep=','):
 
         print('Using Pandas StatCollector')
         super().__init__()
         self._filePath = fileToSave
+        self._detailsPath = detailsPath
         self._header = header
         self._sep = sep
         if not os.access(f'{self._filePath}', os.F_OK):

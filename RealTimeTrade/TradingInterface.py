@@ -30,6 +30,7 @@ global Open_position_log
 global Close_position_log
 global Close_error_log
 
+
 class TradingInterface:
     @classmethod
     def _time_converter(cls, stringTime):
@@ -279,7 +280,6 @@ class TradingInterface:
                     return f"{Close_position_log}Success with completing order"
 
     def search_for_trade(self):
-        self.AvailableToOpen = True
         while not self.InPosition:
             answer = None
             freshData = self.download_actual_dot(self.updatableDataTime)
@@ -287,7 +287,6 @@ class TradingInterface:
                 print(freshData)
             while not isinstance(answer, dict):
                 answer = self.strategy.open_trade_ability()
-                print(answer)
                 if not isinstance(answer, dict):
                     freshData = self.download_actual_dot(self.updatableDataTime)
                     if self.debug:
@@ -296,7 +295,6 @@ class TradingInterface:
                 print(f'Try {Open_position_log}{answer}')
 
             openOrderInfo = self.make_order(orderDetails=answer, typePos='open', openDetails=None)
-            print(openOrderInfo)
             if Open_error_log not in openOrderInfo:
                 if self.debug:
                     print(f'{Open_position_log} Success with open trade at execution time: {self.globalTimer.elapsed()}')
@@ -329,15 +327,22 @@ class TradingInterface:
                 self.tradingTimer.stop()
 
         TradeDetails = {**answer, **answerHold}
+
+        if answer['typeOperation'] == 'BUY':
+            TradeDetails['pct_change'] = (TradeDetails['closePrice'] - TradeDetails['openPrice'])\
+                                         / TradeDetails['openPrice']
+        if answer['typeOperation'] == 'SELL':
+            TradeDetails['pct_change'] = (TradeDetails['openPrice'] - TradeDetails['closePrice'])\
+                                         / TradeDetails['openPrice']
+
         if self.notificator is not None:
-            self.notificator.send_message_to_user(f"Closing:\n{json.dumps(answerHold)}")
-            self.notificator.send_message_to_user(f"=====================")
-            self.notificator.send_message_to_user(f"{json.dumps(TradeDetails)}")
-            self.notificator.send_message_to_user(f"=====================")
+            if TradeDetails['pct_change'] > 0:
+                self.notificator.send_message_to_user(f"✅ Close:\n{json.dumps(TradeDetails)}")
+            else:
+                self.notificator.send_message_to_user(f"🔴 Close:\n{json.dumps(TradeDetails)}")
 
         if self.statistics_collector is not None:
             self.statistics_collector.add_trade_line(TradeDetails)
-
 
     def start_execution(self):
         self.globalTimer.start()
@@ -363,16 +368,16 @@ if __name__ == '__main__':
     monkey = TradingInterface(name='monkey', robotConfig='robotConfig.txt', ticker='CHFJPY',
                               requireTokenUpdate=True)
     # add collector
-    monkey.add_statistics_collector(PandasStatCollector(fileToSave='stat.csv'))
+    monkey.add_statistics_collector(PandasStatCollector(fileToSave='stat.csv', detailsPath='details.csv'))
     # add saxo interface
     monkey.add_broker_interface(SaxoOrderInterface(monkey.get_token))
     # add telegram notificator
     monkey.add_fast_notificator(TelegramNotification())
     # add strategy rules
-    monkey.add_strategy(MeanReversionDual(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
-                                          strategyModePath='strategiesPool/DualMeanConfig.txt'))
-    # monkey.add_strategy(EmptyDebugStrategy(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
-    #                                        strategyModePath='strategiesPool/DualMeanConfig.txt'))
+    # monkey.add_strategy(MeanReversionDual(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
+    #                                       strategyModePath='strategiesPool/DualMeanConfig.txt'))
+    monkey.add_strategy(EmptyDebugStrategy(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
+                                           strategyModePath='strategiesPool/DualMeanConfig.txt'))
     monkey.strategy.add_trading_interface(monkey)
     monkey.start_execution()
     # print(monkey.make_order(orderDetails={"position": 100_000, "openPrice": 134.425}, typePos="open", openDetails=None))
