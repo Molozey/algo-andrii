@@ -584,11 +584,17 @@ def _estimator(_DATAFRAME, _gridParams: dict):
 
     if len(statistics) != 0:
         retDF = pd.DataFrame(statistics)
-        retDF['profit'] = (retDF["position"] * (retDF["closePrice"] -
-                                                retDF["openPrice"]) - Estparameters['slippage']
-                           if (retDF["typeOperation"] == 'BUY').bool
-                           else abs(retDF["position"]) * (retDF["openPrice"]
-                                                          - retDF["closePrice"]) - Estparameters['slippage'])
+        # TODO FIX FIX FIX
+        retDF['profit'] = retDF.apply(lambda x: x["position"] * (x["closePrice"] -
+                                                                 x["openPrice"]) - Estparameters['slippage']
+                                      if x["typeOperation"] == "BUY"
+                                      else abs(x["position"]) * (x["openPrice"]
+                                                                 - x["closePrice"]) - Estparameters['slippage'], axis=1)
+        # retDF['profit'] = (retDF["position"] * (retDF["closePrice"] -
+        #                                         retDF["openPrice"]) - Estparameters['slippage']
+        #                    if (retDF["typeOperation"] == 'BUY').bool
+        #                    else abs(retDF["position"]) * (retDF["openPrice"]
+        #                                                   - retDF["closePrice"]) - Estparameters['slippage'])
         retDF.index = retDF.openIndex
         stepDF = pd.DataFrame(index=pd.RangeIndex(min(retDF.openIndex), max(retDF.openIndex)))
         stepPnl = stepDF.merge(retDF, left_index=True, right_index=True, how='outer').profit.replace(np.nan, 0).cumsum()
@@ -619,7 +625,7 @@ def _estimator(_DATAFRAME, _gridParams: dict):
 
 
 def strategy_real_time_optimize(realTimeData, parameters, savePath: str, show=True, update=False):
-    JOI_PARAMETER = 2
+    JOI_PARAMETER = 12
     SL = int(realTimeData.shape[0] // OPTIMIZESIMPLIFIER)
     paramsEvolution = list()
     RealTimeOptimizeTrades = list()
@@ -801,13 +807,18 @@ def strategy_real_time_optimize(realTimeData, parameters, savePath: str, show=Tr
     if len(RealTimeOptimizeTrades) > 1:
         for tr in RealTimeOptimizeTrades[1:]:
             initDF = initDF.append(tr, ignore_index=True)
-
+    # TODO FIX FIX FIX
     ret = pd.DataFrame(initDF)
-    ret['profit'] = (ret["position"] * (ret["closePrice"] -
-                                        ret["openPrice"]) - paramsEvolution[0][1]['slippage']
-                     if (ret["typeOperation"] == 'BUY').bool
-                     else abs(ret["position"]) * (ret["openPrice"] -
-                                                  ret["closePrice"]) - paramsEvolution[0][1]['slippage'])
+    ret['profit'] = ret.apply(lambda x: x["position"] * (x["closePrice"] -
+                                                         x["openPrice"]) - paramsEvolution[0][1]['slippage']
+    if x["typeOperation"] == "BUY"
+    else abs(x["position"]) * (x["openPrice"] -
+                               x["closePrice"]) - paramsEvolution[0][1]['slippage'], axis=1)
+    # ret['profit'] = (ret["position"] * (ret["closePrice"] -
+    #                                     ret["openPrice"]) - paramsEvolution[0][1]['slippage']
+    #                  if (ret["typeOperation"] == 'BUY').bool
+    #                  else abs(ret["position"]) * (ret["openPrice"] -
+    #                                               ret["closePrice"]) - paramsEvolution[0][1]['slippage'])
     ret.index = ret.openIndex
     stepDF = pd.DataFrame(index=pd.RangeIndex(min(ret.openIndex), max(ret.openIndex)))
     stepPnl = stepDF.merge(ret, left_index=True, right_index=True, how='outer').profit.replace(np.nan, 0).cumsum()
