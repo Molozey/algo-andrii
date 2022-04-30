@@ -247,7 +247,8 @@ def open_position(position, dataFrame, params, reqCounter, preComputed):
         return position
 
     # Получить время полураспада для генерации параметров сделки
-    half_time = int(get_half_time(dataFrame.close[position-params['scanHalfTime']:position]))
+    # half_time = int(get_half_time(dataFrame.close[position-params['scanHalfTime']:position]))
+    half_time = int(dataFrame["halfTime"][position])
     if (half_time > params['scanHalfTime']) or (half_time < 0):
         return open_position(position=position+1, dataFrame=dataFrame, params=params,
                              reqCounter=reqCounter+1, preComputed=preComputed)
@@ -579,6 +580,15 @@ def _estimator(_DATAFRAME, _gridParams: dict):
     # !!!!!!!!!!!!!!!!!
     rightShift = int(min(RecursionBorder, Estparameters['scanHalfTime'] * Estparameters['halfToTime'])) + 1
     POS = openShift + 1
+    nanArray = np.empty(shape=(_DATAFRAME.shape[0], 1))
+    nanArray[:] = np.nan
+    for i in range(openShift, _DATAFRAME.shape[0] - 1, 30):
+        nanArray[i] = int(get_half_time(_DATAFRAME.open[i -Estparameters['scanHalfTime']:i]))
+    _DATAFRAME["halfTime"] = nanArray
+    # _DATAFRAME["halfTime"][0] = 2323
+    _DATAFRAME["halfTime"] = _DATAFRAME["halfTime"].fillna(method='bfill')
+    _DATAFRAME["halfTime"] = _DATAFRAME["halfTime"].fillna(method='ffill')
+    # print(np.unique(_DATAFRAME["halfTime"], return_counts=True))
     statistics = _collectTrades(initPOS=POS, SL=SL, coll_DATAFRAME=_DATAFRAME, leftShift=leftShift,
                                 rightShift=rightShift, openShift=openShift, Collparameters=Estparameters)
 
@@ -634,7 +644,7 @@ def strategy_real_time_optimize(realTimeData, parameters, savePath: str, show=Tr
     # Время сколько торгуем
     _UPDATE_TIME = pd.Timedelta('1w')
     # Время за сколько оптимизируемся
-    _TRADE_TIME = pd.Timedelta('2w')
+    _TRADE_TIME = pd.Timedelta('1w')
     _UPDATE_TIME //= '1T'
     _TRADE_TIME //= '1T'
     SL = (SL // _TRADE_TIME) * _TRADE_TIME
@@ -730,6 +740,7 @@ def strategy_real_time_optimize(realTimeData, parameters, savePath: str, show=Tr
             optimalParams.to_csv(f'{savePath}{systemDivide}{POSITION - _UPDATE_TIME}_{POSITION}{systemDivide}all_joi.csv')
 
         optimalParams = pd.DataFrame(optimizing_step).sort_values(by='TotalPNL', ascending=False).iloc[0]
+        # optimalParams = pd.DataFrame(optimizing_step).sort_values(by='PNLDD', ascending=False).iloc[0]
 
         optimalParams = {
         # Оптимизировать !!!
