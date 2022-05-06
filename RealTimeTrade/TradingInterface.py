@@ -141,6 +141,7 @@ class TradingInterface:
         self.lastTokenUpdate = datetime.datetime.strptime(updateDate, '%Y-%m-%d %H:%M:%S')
         self._robotConfig.to_csv(self._configPath, header=None)
         self.brokerInterface._token = token
+        self.brokerInterface.update_token()
 
     def add_strategy(self, strategy: availableStrategies):
         self.strategy = strategy
@@ -374,10 +375,10 @@ if __name__ == '__main__':
     # add telegram notificator
     monkey.add_fast_notificator(TelegramNotification())
     # add strategy rules
-    # monkey.add_strategy(MeanReversionDual(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
-    #                                       strategyModePath='strategiesPool/DualMeanConfig.txt'))
-    monkey.add_strategy(EmptyDebugStrategy(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
-                                           strategyModePath='strategiesPool/DualMeanConfig.txt'))
+    monkey.add_strategy(MeanReversionDual(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
+                                          strategyModePath='strategiesPool/DualMeanConfig.txt'))
+    # monkey.add_strategy(EmptyDebugStrategy(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
+    #                                        strategyModePath='strategiesPool/DualMeanConfig.txt'))
     monkey.strategy.add_trading_interface(monkey)
     monkey.start_execution()
     # print(monkey.make_order(orderDetails={"position": 100_000, "openPrice": 134.425}, typePos="open", openDetails=None))

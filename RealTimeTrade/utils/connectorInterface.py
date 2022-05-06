@@ -308,3 +308,9 @@ class SaxoOrderInterface(AbstractOrderInterface):
     def cancelOrder(self, orderId):
         url = f"https://gateway.saxobank.com/sim/openapi/trade/v2/orders/{orderId}/?AccountKey={self._AccountKey}"
         self._client.OWNREQUEST(method='delete', url=url, request_args={})
+
+    def update_token(self):
+        self._client = API(access_token=self._token)
+        self._AccountKey = account_info(self._client).AccountKey
+        self._ClientKey = account_info(self._client).ClientKey
+
