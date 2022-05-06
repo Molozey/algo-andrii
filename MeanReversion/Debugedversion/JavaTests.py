@@ -64,7 +64,7 @@ retTuple = np.diff(logTuple)
 logTuple = logTuple[1:]
 
 #   Basic Variance Ratio Test
-VRtest = variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=params)
+VRtest = variance_ratio(logTuple=tuple(logTuple), retTuple=retTuple, params=params, extend_info=True)
 with open(f"DataForJavaValidation{systemDivide}testBasicVarianceRatio.txt", 'w+') as f:
     f.write(str(VRtest))
 
