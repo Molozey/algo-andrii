@@ -29,6 +29,7 @@ class Strategy:
         VIX.columns = [f"VIX_{_}" for _ in VIX.columns]
         plt.plot(VIX.VIX_Open, '--')
         VIX = VIX[["VIX_Open"]]
+        VIX.to_csv('VIX.csv')
 
         # Download CHFJPY information
         ticker = yfinance.Ticker('CHFJPY=X')
@@ -37,6 +38,7 @@ class Strategy:
         CHFJPY.columns = [f"CHFJPY_{_}" for _ in CHFJPY.columns]
         plt.plot(CHFJPY.CHFJPY_Open, '--')
         CHFJPY = CHFJPY[["CHFJPY_Open"]]
+        CHFJPY.to_csv('CHFJPY.csv')
 
         # Download Gold information
         ticker = yfinance.Ticker('GC=F')
@@ -45,6 +47,7 @@ class Strategy:
         GOLD.columns = [f"GOLD_{_}" for _ in GOLD.columns]
         plt.plot(GOLD.GOLD_Open, '--')
         GOLD = GOLD[["GOLD_Open"]]
+        GOLD.to_csv('GOLD.csv')
 
         merged = CHFJPY.merge(VIX, left_index=True, right_index=True, how='left')
         nan = np.any(merged.isna(), axis=1)
