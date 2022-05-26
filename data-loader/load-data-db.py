@@ -1,5 +1,4 @@
 import argparse
-from ib_insync import util, Forex, Future, Stock
 from datetime import datetime, timedelta, date
 from utils import SQLConnector, IBConnector, saveDF, timeSectorToDates
 
@@ -20,19 +19,23 @@ if args['instrument'] == None:
     df = sqlConnection.loadIndex()
     print('Use -h to get info about a program.')
     print('Currently available instruments:')
+<<<<<<< HEAD
     print(df)
     print(df.name.values)
+=======
+    print(df.to_string(index=False))
+>>>>>>> origin/Petr
 
     exit()
 
 instrument = args['instrument']
 
-if args['start'] == None:
+if args['start'] == None or args['start'] == '.':
     start = None
 else:
     start = datetime.strptime(args['start'], '%Y%m%d').date()
 
-if args['end'] == None:
+if args['end'] == None or args['end'] == '.':
     end = None
 else:
     end = datetime.strptime(args['end'], '%Y%m%d').date()

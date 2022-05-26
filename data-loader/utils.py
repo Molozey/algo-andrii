@@ -32,6 +32,14 @@ class SQLConnector:
         return self.index[self.index['name'] == instrument]['id'].iloc[0]
     
     def createInstrument(self, instrument, type_):
+        """Create instrument or do nothing if already exists and return it's id
+
+        Args:
+
+        instrument -- name of the instrument (string)
+
+        type_ -- type of the instrument (int)
+        """
         self.updateIndex()
         if (self.index['name'] == instrument).any() == False:
             if (self.index['type_name'] == type_.upper()).any() == False:
@@ -70,6 +78,7 @@ class SQLConnector:
             query += f" and `time` >= '{start.strftime('%Y-%m-%d')+' 00:00:00'}' "
         if end != None:
             query += f" and `time` <= '{end.strftime('%Y-%m-%d')+' 23:55:55'}' "
+        
         return pd.read_sql_query(query, self.conn)
     
     def loadIndex(self, update=False):

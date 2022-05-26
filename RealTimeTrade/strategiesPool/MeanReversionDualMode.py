@@ -4,12 +4,14 @@ import pandas as pd
 import time
 from datetime import datetime
 
+
 class MeanReversionDual:
     pass
 
 
 class EmptyDebugStrategy:
     pass
+
 
 from RealTimeTrade.TradingInterface import TradingInterface
 from RealTimeTrade.utils.utils import *
