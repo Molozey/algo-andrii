@@ -1,5 +1,0 @@
-,capital,slippage,slippagePerCapital,yThreshold,rollingMean,fatRollingMean,timeBarrier,varianceRatioFilter,reverseVarianceRatioFilter,restAfterLoss,restAfterFatProfit,stopLossStdMultiplier,takeProfitStdMultiplier,varianceRatioCarreteParameter,varianceLookBack,varianceRatioCarrete,scanHalfTime,halfToFat,halfToLight,halfToTime
-0,20000,2,0.0001,200.0,,,,1.0,1.0,100.0,0.0,12000.0,5000.0,20.0,,,2000,2.0,1.0,3.0
-1,20000,2,0.0001,1.7,,,,1.0,1.0,90.0,1.0,108.0,45.0,20.0,,,2400,1.0,1.0,3.0
-2,20000,2,0.0001,1.95,,,,1.0,1.0,81.0,1.0,97.2,40.5,16.0,,,1920,1.0,1.0,2.0
-3,20000,2,0.0001,1.95,,,,1.0,1.0,89.0,1.0,87.48,36.45,16.0,,,1920,1.0,1.0,1.0
