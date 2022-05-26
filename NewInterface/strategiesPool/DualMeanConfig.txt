@@ -1,0 +1,3 @@
+waitingParameter,1200
+BBandsMode,OnlyOne
+OpenCrossingMode,singleCrossing
