@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from core.connectors._baseConnector import AbstractOrderInterface
 from saxo_openapi import API
 from saxo_openapi.contrib.orders import tie_account_to_order, MarketOrderFxSpot, StopOrderFxSpot, LimitOrderFxSpot
 from saxo_openapi.contrib.orders.onfill import TakeProfitDetails, StopLossDetails
@@ -17,30 +17,6 @@ import datetime
 import urllib
 import requests
 
-class AbstractOrderInterface:
-    def __init__(self):
-        pass
-
-    @abstractmethod
-    def get_actual_data(self, *args):
-        pass
-
-    @abstractmethod
-    def place_order(self, *args):
-        pass
-
-    @abstractmethod
-    def get_asset_data_hist(self, *args):
-        pass
-
-    @abstractmethod
-    def validate_open_order(self, *args):
-        pass
-
-    @abstractmethod
-    def validate_close_order(self, *args):
-        pass
-
 
 class SaxoOrderInterface(AbstractOrderInterface):
     def __init__(self, token):
@@ -49,6 +25,7 @@ class SaxoOrderInterface(AbstractOrderInterface):
         self._client = API(access_token=self._token)
         self._AccountKey = account_info(self._client).AccountKey
         self._ClientKey = account_info(self._client).ClientKey
+        self._apiToken = '5f75d2d79bbbb4.84214003'
         r = rs.diagnostics.Get()
         rv = self._client.request(r)
         assert rv is None and r.status_code == 200
@@ -84,7 +61,8 @@ class SaxoOrderInterface(AbstractOrderInterface):
         str_uics = ''
         for ticker in list_tickers:
             try:
-                uic = str(list(InstrumentToUic(self._client, self._AccountKey, spec={'Instrument': ticker}).values())[0]) + ','
+                uic = str(list(InstrumentToUic(self._client, self._AccountKey, spec={'Instrument': ticker}).values())[
+                              0]) + ','
                 str_uics += uic
             except Exception as error:
                 print(f'{ticker}: {error}')
@@ -94,7 +72,7 @@ class SaxoOrderInterface(AbstractOrderInterface):
             "Uics": str_uics,
             "AccountKey": self._AccountKey,
             "AssetType": 'FxSpot'
-            }
+        }
         # ask quotes:
         r = tr.infoprices.InfoPrices(params)
         # combine two lists in one dict:
@@ -112,7 +90,7 @@ class SaxoOrderInterface(AbstractOrderInterface):
         order_price: if order_type == "limit", then order_price is nesessary
         dict_orders = {fx_ticket: Amount}
         fx_ticket: text
-        Amount: -int, +int 
+        Amount: -int, +int
         '''
         for ticket, amount in dict_orders.items():
             try:
@@ -121,7 +99,8 @@ class SaxoOrderInterface(AbstractOrderInterface):
                 if order_type == "market":
                     order = tie_account_to_order(self._AccountKey, MarketOrderFxSpot(Uic=uic, Amount=amount))
                 elif order_type == "limit":
-                    order = tie_account_to_order(self._AccountKey, LimitOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=order_price))
+                    order = tie_account_to_order(self._AccountKey,
+                                                 LimitOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=order_price))
                 r = tr.orders.Order(data=order)
                 rv = self._client.request(r)
                 print(f'{ticket} amount {amount}: {rv}')
@@ -153,7 +132,8 @@ class SaxoOrderInterface(AbstractOrderInterface):
         str_uics = ''
         for ticker in list_tickers:
             try:
-                uic = str(list(InstrumentToUic(self._client, self._AccountKey, spec={'Instrument': ticker}).values())[0]) + ','
+                uic = str(list(InstrumentToUic(self._client, self._AccountKey, spec={'Instrument': ticker}).values())[
+                              0]) + ','
                 str_uics += uic
             except Exception as error:
                 print(f'{ticker}: {error}')
@@ -163,7 +143,7 @@ class SaxoOrderInterface(AbstractOrderInterface):
             "Uics": str_uics,
             "AccountKey": self._AccountKey,
             "AssetType": 'FxSpot'
-            }
+        }
         # ask quotes:
         r = tr.infoprices.InfoPrices(params)
         # combine two lists in one dict:
@@ -182,8 +162,8 @@ class SaxoOrderInterface(AbstractOrderInterface):
         "ask", "bid" corrections exist for "opder_type = 'market'" as saxo open api request only limits orders which
         lower than "ask" (if amount < 0) and higher than "bid" (if amount > 0)
         '''
-        ask_correction = 0.9995 # price must be lower then ask
-        bid_correction = 1.0005 # price must be higher then bid
+        ask_correction = 0.9995  # price must be lower then ask
+        bid_correction = 1.0005  # price must be higher then bid
 
         ticker_data = self.get_fx_quote([ticker])[ticker]
         # print(ticker_data)
@@ -195,11 +175,14 @@ class SaxoOrderInterface(AbstractOrderInterface):
 
         if order_type == 'market':
             if amount > 0:
-                order = tie_account_to_order(self._AccountKey, StopOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=bid*bid_correction))
+                order = tie_account_to_order(self._AccountKey,
+                                             StopOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=bid * bid_correction))
             elif amount < 0:
-                order = tie_account_to_order(self._AccountKey, StopOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=ask*ask_correction))
+                order = tie_account_to_order(self._AccountKey,
+                                             StopOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=ask * ask_correction))
         elif order_type == 'limit':
-            order = tie_account_to_order(self._AccountKey, StopOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=order_price))
+            order = tie_account_to_order(self._AccountKey,
+                                         StopOrderFxSpot(Uic=uic, Amount=amount, OrderPrice=order_price))
         r = tr.orders.Order(data=order)
         try:
             rv = self._client.request(r)
@@ -227,15 +210,15 @@ class SaxoOrderInterface(AbstractOrderInterface):
         density = density // 60
         uic = list(InstrumentToUic(self._client, self._AccountKey, spec={'Instrument': ticker}).values())[0]
         params = {
-                "AssetType": "FxSpot",
-                "Horizon": density, # 1 muinte density (min 1 minute)
-                "Count": amount_intervals, # how many historical intervals with the "Horizont" (max 1200)
-                "Uic": uic
-                }
+            "AssetType": "FxSpot",
+            "Horizon": density,  # 1 muinte density (min 1 minute)
+            "Count": amount_intervals,  # how many historical intervals with the "Horizont" (max 1200)
+            "Uic": uic
+        }
         r = chart.charts.GetChartData(params=params)
         rv = self._client.request(r)
         return rv['Data']
-    
+
     def portfolio_open_positions(self):
         '''
         return a dict with one pair "key: int" and with dicts.
@@ -258,13 +241,13 @@ class SaxoOrderInterface(AbstractOrderInterface):
         for n in range(len(rv['Data'])):
             ticker_type_asset = rv['Data'][n]['NetPositionId'].split('__')
             potision_info = {'amount_long': rv['Data'][n]['NetPositionBase']['AmountLong'],
-                            'amount_short': rv['Data'][n]['NetPositionBase']['AmountShort'],
-                            'uic': rv['Data'][n]['NetPositionBase']['Uic'],
-                            'type_asset': ticker_type_asset[1]}
+                             'amount_short': rv['Data'][n]['NetPositionBase']['AmountShort'],
+                             'uic': rv['Data'][n]['NetPositionBase']['Uic'],
+                             'type_asset': ticker_type_asset[1]}
             dict_positions[ticker_type_asset[0]] = potision_info
         dict_positions['amount_positions'] = rv['__count']
         return dict_positions
-    
+
     def check_order(self, order_id):
         '''
         Checking order existing. If exist then return True, else False
@@ -276,6 +259,31 @@ class SaxoOrderInterface(AbstractOrderInterface):
             return False
         else:
             return True
+
+    def alternative_get_asset_data_hist(self, symbol, interval=None, from_='1000-01-01', to=str(datetime.date.today()),
+                                        api_token='5f75d2d79bbbb4.84214003'):
+        # idditioal information: https://eodhistoricaldata.com/financial-apis/list-supported-forex-currencies/
+        # for indexes use {symbol}{.FOREX}
+        # for indexes use {symbol}{.INDX}
+        api_token = self._apiToken
+        if interval == None:
+            url = f'https://eodhistoricaldata.com/api/eod/{symbol}?api_token={api_token}&fmt=json&from={from_}&to={to}'
+        else:
+            # change type of 'from_' & 'to' to calculate amount days between it
+            from_ = time.mktime(datetime.datetime.strptime(from_, "%Y-%m-%d %H:%M:%S").timetuple())
+            to = time.mktime(datetime.datetime.strptime(to, "%Y-%m-%d %H:%M:%S").timetuple())
+            days_in_term = int((to - from_) / 60 / 60 / 24)
+            if (interval == '1h') & (days_in_term <= 7200) | (interval == '5m') & (days_in_term <= 600) | (
+                    interval == '1m') & (days_in_term <= 120):
+                url = f'https://eodhistoricaldata.com/api/intraday/{symbol}?api_token={api_token}&fmt=json&interval={interval}&from={from_}&to={to}'
+            else:
+                return "You must use intervals '1h'/'5m'/'1m' and all of them can contain maximum 7200/600/120 days accordingly."
+        print(url)
+        response = urllib.request.urlopen(url)
+        data = json.loads(response.read())
+        if bool(data) == False:
+            return "The data with the parameters does not exist on the 'eodhistoricaldata.com' server."
+        return data
 
     def saxoToolKit(self):
         url = f"https://gateway.saxobank.com/sim/openapi/ref/v1/currencypairs/?AccountKey={self._AccountKey}&ClientKey={self._ClientKey}"
@@ -289,3 +297,4 @@ class SaxoOrderInterface(AbstractOrderInterface):
         self._client = API(access_token=self._token)
         self._AccountKey = account_info(self._client).AccountKey
         self._ClientKey = account_info(self._client).ClientKey
+

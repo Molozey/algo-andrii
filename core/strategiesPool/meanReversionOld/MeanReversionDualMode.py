@@ -1,8 +1,9 @@
-from abc import ABC, abstractmethod
+from core.strategiesPool._baseStrategy import AbstractStrategy
 from typing import Union
 import pandas as pd
 import time
 from datetime import datetime
+import numpy as np
 
 
 class MeanReversionDual:
@@ -13,31 +14,73 @@ class EmptyDebugStrategy:
     pass
 
 
-from RealTimeTrade.TradingInterface import TradingInterface
-from RealTimeTrade.utils.utils import *
-from RealTimeTrade.utils.timerModule import Timer
+def create_strategy_config(params, CAP):
+    """
+    Создает удобную сетку для дальнейших расчетов
+    :param params: начальные init параметры
+    :return: словарь из параметров использующийся везде
+    """
+    capital = CAP
+    slippage = 2
+    retParams = {
+        # Капитал
+        'capital': capital,
+        'slippage': slippage,
+        # Можно использовать для стоп лоссов и тейков с учетом слипэджа
+        'slippagePerCapital': slippage / capital,
+        # То какой размах мы будем брать для построения полос Боллинджера. Это и есть X Threshold из файла Евгения
+        'yThreshold': round(params['yThreshold'] / 100, 2),
+        # Период за который мы строим малую скользяшку
+        'rollingMean': None,
+        # Период за который мы строим большую скользяшку
+        'fatRollingMean': None,
+        # Временной барьер, Максимальное время сколько мы можем держать позицию
+        'timeBarrier': None,
+        # Параметр для определения того что данные MeanReversion/TrendFollowing
+        # Используется в VRratio тестах для открытия/удержания позиции
+        'varianceRatioFilter': params['varianceRatioFilter'],
+        'reverseVarianceRatioFilter': params['reverseVarianceRatioFilter'],
+        # Сколько времени мы не торгуем после срабатывания стоп лосса
+        'restAfterLoss': params['restAfterLoss'],
+        # Сколько времени мы не торгуем после закрытия позиции о большую скользяшку
+        'restAfterFatProfit': params['restAfterFatProfit'],
+        # Процент стоп лосса
+        'stopLossStdMultiplier': round(params['stopLossStdMultiplier'] / 100, 3),
+        # Процент тэйк профита
+        'takeProfitStdMultiplier': round(params['takeProfitStdMultiplier'] / 100, 3),
+        # Нужно чтобы пересчитывать VR границы в автоматическом режиме
+        'varianceRatioCarreteParameter': params['varianceRatioCarreteParameter'],
+        # Тот период за который мы будем считать Variance Ratio. Те ставя тут к примеру 1500,
+        # мы должны будем передавать в функцию
+        # VR Ratio 1500 точек данных. Сейчас этот гипермараметр связан с гиперпараметров периода малой скользяшки
+        'varianceLookBack': None,
+        # Чему будет равен временной лаг Q; Q = varianceLookBack // PARAM + 1
+        'varianceRatioCarrete': None,
+        # Параметр по которому мы будем искать период полураспада
+        'scanHalfTime': int(params['scanHalfTime']),
+        #
+        'halfToFat': params['halfToFat'],
+        #
+        'halfToLight': params['halfToLight'],
+        #
+        'halfToTime': params['halfToTime'],
+
+    }
+    return retParams
 
 
-class AbstractStrategy(ABC):
-    @abstractmethod
-    def open_trade_ability(self):
-        pass
-
-    @abstractmethod
-    def close_trade_ability(self, openDetails):
-        pass
-
-    @abstractmethod
-    def add_trading_interface(self, tradingInterface):
-        pass
-
+# from core.TradingInterface import TradingInterface
+from core.utils.math.varianceRatio import variance_ratio, reverse_variance_ratio
+from core.utils.math.halfTime import get_half_time
+from core.utils.timerModule import Timer
 
 
 class MeanReversionDual(AbstractStrategy):
     UnableToOpenLog = "LOG | UnableOpen: "
     UnableToOpenLogCross = UnableToOpenLog + " no second crossing: "
 
-    availableTradingInterface = Union[None, TradingInterface]
+    # availableTradingInterface = Union[None, TradingInterface]
+    availableTradingInterface = Union[None, object]
     availableBBandsModes = Union['Ask&Bid', 'OnlyOne']
     availableOpenCrossingModes = Union['multiCrossing', 'singleCrossing']
 
@@ -48,18 +91,18 @@ class MeanReversionDual(AbstractStrategy):
     def __init__(self, strategyConfigPath: str, strategyModePath: str):
         super(MeanReversionDual, self).__init__()
         self._tradeCapital = 100_000
-
         self.tradingInterface = None
 
-        mode = pd.read_csv(strategyModePath, header=None).T
+        mode = pd.read_csv('../' + strategyModePath, header=None).T
         mode = pd.Series(data=mode.iloc[1, :].values,
                                              index=mode.iloc[0, :])
+
         self.openMode = mode['OpenCrossingMode']
         self.BBandsMode = mode['BBandsMode']
         self.maxCrossingParameter = int(mode['waitingParameter'])
         del mode
 
-        self._initStrategyParams = pd.read_csv(strategyConfigPath, header=None).T
+        self._initStrategyParams = pd.read_csv('../' + strategyConfigPath, header=None).T
         self._initStrategyParams = pd.Series(data=self._initStrategyParams.iloc[1, :].values,
                                              index=self._initStrategyParams.iloc[0, :])
 

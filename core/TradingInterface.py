@@ -8,20 +8,20 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
-from RealTimeTrade.utils.connectorInterface import *
-from RealTimeTrade.utils.statCollectorModule import *
-from RealTimeTrade.utils.timerModule import *
-from RealTimeTrade.utils.utils import *
-from RealTimeTrade.utils.TelegramNotificator import *
-from RealTimeTrade.strategiesPool.MeanReversionDualMode import *
-from RealTimeTrade.utils.statCollectorModule import PandasStatCollector
+from core.connectors.SAXO import *
+from core.utils.timerModule import *
+from core.utils.TelegramNotificator import *
+from core.statCollectors.pandasSaver import PandasStatCollector
+from core.structures.asset_structure import assetInformation
+from core.strategiesPool.emptyStrategy.EmptyStrategy import *
+from core.strategiesPool.meanReversionPrediction.MeanReversionPredict import *
+from core.warnings.loggingPresets import *
 
 import pandas as pd
 import numpy as np
-from typing import Union
+from typing import Union, Dict, List
 import datetime
 from saxo_openapi.exceptions import OpenAPIError
-from NewInterface.structures.asset_structure import assetInformation
 
 global DEBUG_MODE
 global Update_log
@@ -42,7 +42,7 @@ class TradingInterface:
 
     availableBrokerInterface = Union[None, SaxoOrderInterface, AbstractOrderInterface]
     availableNotificator = Union[None, TelegramNotification]
-    availableStrategies = Union[None, MeanReversionDual, EmptyDebugStrategy]
+    availableStrategies = Union[None, EmptyStratergy, MeanReversionLightWithPrediction]
     availableStatisticsCollectors = Union[None, PandasStatCollector]
 
     brokerInterface: availableBrokerInterface
@@ -54,7 +54,8 @@ class TradingInterface:
     ordersType: Union[str]
     AvailableToOpen: bool
 
-    def __init__(self, name: str, robotConfig: str, ticker: Union[List[str], str], requireTokenUpdate: bool = True):
+    def __init__(self, name: str, robotConfig: str, assets: Dict,
+                 requireTokenUpdate: bool = True, debug: bool = False):
         """
         Initialize Interface
         :param name: Robot's Name
@@ -71,9 +72,9 @@ class TradingInterface:
         self.AvailableToOpen = True
         self.globalTimer = Timer()
         self.tradingTimer = Timer()
-        self.debug = DEBUG_MODE
+        self.debug = debug
         self.name = name
-        self.ticker = ticker
+        self.ticker = assets
 
         self.InPosition = False
         # Config block
@@ -93,11 +94,9 @@ class TradingInterface:
         # Plugged strategy
         self.strategy = None
         # Saver block
-        self.historical = list()
-        if type(ticker) == list:
-            self.historical = [assetInformation(ticker_name=ticker_name) for ticker_name in ticker]
-        if type(ticker) == str:
-            self.historical = [assetInformation(ticker_name=ticker)]
+        self.assets = list()
+        for ticker in assets.items():
+            self.assets.append(assetInformation(ticker_name=ticker[0], ticker_parameters=ticker[1]))
         # Utils block
         self._cachedCollectedTime = None
 
@@ -134,11 +133,10 @@ class TradingInterface:
         if (self.updatableDataTime // density != 1) or (self.updatableDataTime % density != 0):
             warnings.warn('TradingInterface updatable time miss-matched with history density request')
 
-        if self.brokerInterface is not None:
-            for basicAsset in self.historical:
-
-                history = self.brokerInterface.get_asset_data_hist(ticker=basicAsset.Name, density=density,
-                                                                   amount_intervals=lookBack)
+        for basicAsset in self.assets:
+            if basicAsset.Supplier is not None:
+                history = basicAsset.Supplier.get_asset_data_hist(ticker=basicAsset.Name, density=density,
+                                                                  amount_intervals=lookBack)
                 history = pd.DataFrame(history)
                 history['Time'] = history['Time'].apply(lambda x: self._time_converter(x))
                 basicAsset.CloseAsk = list(history['CloseAsk'].values)
@@ -157,7 +155,7 @@ class TradingInterface:
 
                 basicAsset._cachedCollectedTime = basicAsset.Time[-1]
                 del history
-                return f'{Update_log}Successfully downloaded last {lookBack} dotes with last time {basicAsset._cachedCollectedTime}'
+                print(f'{Update_log}Successfully downloaded last {lookBack} dotes for {basicAsset.Name} with last time {basicAsset._cachedCollectedTime}')
             else:
                 warnings.warn('No brokerInterface plugged')
                 return f"{Error_log}No brokerInterface"
@@ -165,39 +163,12 @@ class TradingInterface:
     def start_execution(self):
         self.globalTimer.start()
         historical = self.download_history_data(self.updatableDataTime,
-                                                min(int(self.strategy.strategyParams['scanHalfTime']),
+                                                min(int(self.strategy.['scanHalfTime']),
                                                     int(self._robotConfig['maxLookBack'])))
         if self.debug:
-            print(self.historical[0].Name)
+            print([asset.Name for asset in self.assets])
 
         # while True:
         #     self.search_for_trade()
-
-
-if __name__ == '__main__':
-    DEBUG_MODE = True
-    Update_log = "LOG | UPDATE: "
-    Error_log = "LOG | ERROR: "
-    Open_error_log = "LOG | Cannot open: "
-    Open_position_log = "LOG | OpenPosition: "
-    Close_position_log = "LOG | ClosePosition: "
-    Close_error_log = "LOG | Cannot close: "
-    # initialize
-    monkey = TradingInterface(name='monkey', robotConfig='robotConfig.txt', ticker='CHFJPY',
-                              requireTokenUpdate=True)
-    # add collector
-    monkey.add_statistics_collector(PandasStatCollector(fileToSave='stat.csv', detailsPath='details.csv'))
-    # add saxo interface
-    monkey.add_broker_interface(SaxoOrderInterface(monkey.get_token))
-    # add telegram notificator
-    # monkey.add_fast_notificator(TelegramNotification())
-    # add strategy rules
-    monkey.add_strategy(MeanReversionDual(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
-                                          strategyModePath='strategiesPool/DualMeanConfig.txt'))
-    # monkey.add_strategy(EmptyDebugStrategy(strategyConfigPath='strategiesPool/MeanReversionStrategyParameters.txt',
-    #                                        strategyModePath='strategiesPool/DualMeanConfig.txt'))
-    # monkey.strategy.add_trading_interface(monkey)
-    monkey.start_execution()
-    # print(monkey.make_order(orderDetails={"position": 100_000, "openPrice": 134.425}, typePos="open", openDetails=None))
 
 
