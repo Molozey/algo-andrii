@@ -1,13 +1,13 @@
-from core.connectors.SAXO import SaxoOrderInterface
+from core.dataSuppliers.SAXO import SaxoDataProvider
 
 required = {'CHFJPY':
                 {
                     'updatable_time': 60,
-                    'supplier': SaxoOrderInterface
+                    'supplier': SaxoDataProvider
                 },
-            'CHFUSD':
+            'EURGBP':
                 {
                     'updatable_time': 60,
-                    'supplier': SaxoOrderInterface
+                    'supplier': SaxoDataProvider
                 }
             }

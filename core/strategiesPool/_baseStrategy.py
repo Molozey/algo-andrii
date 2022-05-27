@@ -12,6 +12,8 @@ class AbstractStrategy(ABC):
         self._initStrategyParams = Series(data=self._initStrategyParams.iloc[1, :].values,
                                           index=self._initStrategyParams.iloc[0, :])
 
+        self.requiredHistory = None
+
     @abstractmethod
     def open_trade_ability(self) -> dict:
         pass

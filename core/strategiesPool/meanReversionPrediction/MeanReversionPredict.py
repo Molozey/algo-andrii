@@ -1,5 +1,5 @@
 from core.strategiesPool._baseStrategy import AbstractStrategy
-from pandas import read_csv, Series
+from pandas import read_csv, Series, Timedelta
 from core.strategiesPool.meanReversionPrediction.requiredInfo import required
 
 
@@ -9,9 +9,7 @@ class MeanReversionLightWithPrediction(AbstractStrategy):
                                                                strategyModePath=strategyModePath)
 
         self.required_assets = required
-        self.history_required =
-
-
+        self.requiredHistory = Timedelta(minutes=800)
 
     def open_trade_ability(self):
         pass

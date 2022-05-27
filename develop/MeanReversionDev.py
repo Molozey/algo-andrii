@@ -25,7 +25,7 @@ if __name__ == '__main__':
     # monkey.add_fast_notificator(TelegramNotification())
     monkey.add_strategy(strategy)
     monkey.strategy.add_trading_interface(monkey)
-    # monkey.start_execution()
+    monkey.start_execution()
     # print(monkey.make_order(orderDetails={"position": 100_000, "openPrice": 134.425}, typePos="open", openDetails=None))
 
 

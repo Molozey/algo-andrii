@@ -68,23 +68,19 @@ class TradingInterface:
         :param ticker: which instrument we trade?
         :param requireTokenUpdate should token for broker Interface be updatable
         """
-        # Robot name and strategy ticker block
-        self.AvailableToOpen = True
+        # Robot information
         self.globalTimer = Timer()
         self.tradingTimer = Timer()
         self.debug = debug
         self.name = name
-        self.ticker = assets
 
-        self.InPosition = False
         # Config block
         self._configPath = robotConfig
         self._robotConfig = pd.read_csv(robotConfig, header=None).T
         self._robotConfig = pd.Series(data=self._robotConfig.iloc[1, :].values,
                                       index=self._robotConfig.iloc[0, :])
-        self.updatableDataTime = int(self._robotConfig['updateDataTime'])
         self._token = str(self._robotConfig['apiToken'])
-        self.ordersType = str(self._robotConfig['ordersType'])
+
         # Statistics and fast notificator block
         self.statistics_collector = None
         self.notificator = None
@@ -93,12 +89,15 @@ class TradingInterface:
         self.brokerInterface = None
         # Plugged strategy
         self.strategy = None
-        # Saver block
+
+        # Market data storage
         self.assets = list()
+        # Threads of assetsUpdatable
+        self.assetsThreads = list()
+
+        # Initialize of assets classes
         for ticker in assets.items():
             self.assets.append(assetInformation(ticker_name=ticker[0], ticker_parameters=ticker[1]))
-        # Utils block
-        self._cachedCollectedTime = None
 
         # Inside settings
         self._refresherFreshDataTimer = 1
@@ -129,46 +128,84 @@ class TradingInterface:
             self.threadWithTokenUpdatable = Thread(target=self.notificator.token_request_echo,
                                                    args=(self.notificator, self)).start()
 
-    def download_history_data(self, density, lookBack: int) -> str:
-        if (self.updatableDataTime // density != 1) or (self.updatableDataTime % density != 0):
-            warnings.warn('TradingInterface updatable time miss-matched with history density request')
-
-        for basicAsset in self.assets:
-            if basicAsset.Supplier is not None:
-                history = basicAsset.Supplier.get_asset_data_hist(ticker=basicAsset.Name, density=density,
-                                                                  amount_intervals=lookBack)
-                history = pd.DataFrame(history)
-                history['Time'] = history['Time'].apply(lambda x: self._time_converter(x))
-                basicAsset.CloseAsk = list(history['CloseAsk'].values)
-                basicAsset.CloseBid = list(history['CloseBid'].values)
-                basicAsset.HighAsk = list(history['HighAsk'].values)
-                basicAsset.LowAsk = list(history['LowAsk'].values)
-                basicAsset.LowBid = list(history['LowBid'].values)
-                basicAsset.HighBid = list(history['HighBid'].values)
-                basicAsset.OpenAsk = list(history['OpenAsk'].values)
-                basicAsset.OpenBid = list(history['OpenBid'].values)
-                basicAsset.OpenMiddle = list(history.apply(lambda x: (x['OpenBid'] + x['OpenAsk']) / 2, axis=1).values)
-                basicAsset.CloseMiddle = list(history.apply(lambda x: (x['CloseBid'] + x['CloseAsk']) / 2, axis=1).values)
-                basicAsset.LowMiddle = list(history.apply(lambda x: (x['LowBid'] + x['LowAsk']) / 2, axis=1).values)
-                basicAsset.HighMiddle = list(history.apply(lambda x: (x['HighBid'] + x['HighAsk']) / 2, axis=1).values)
-                basicAsset.Time = list(history['Time'].values)
-
-                basicAsset._cachedCollectedTime = basicAsset.Time[-1]
-                del history
-                print(f'{Update_log}Successfully downloaded last {lookBack} dotes for {basicAsset.Name} with last time {basicAsset._cachedCollectedTime}')
-            else:
-                warnings.warn('No brokerInterface plugged')
-                return f"{Error_log}No brokerInterface"
-
     def start_execution(self):
-        self.globalTimer.start()
-        historical = self.download_history_data(self.updatableDataTime,
-                                                min(int(self.strategy.['scanHalfTime']),
-                                                    int(self._robotConfig['maxLookBack'])))
-        if self.debug:
-            print([asset.Name for asset in self.assets])
+        if not self.strategy:
+            raise Exception('No strategy plugged!')
 
-        # while True:
-        #     self.search_for_trade()
+        for asset in self.assets:
+            asset.add_interface(self)
+            if issubclass(asset.Supplier, self.brokerInterface.__class__):
+                asset.Supplier = self.brokerInterface
+            else:
+                # TODO: How to create dataProvider object with only information of its type.
+                # One of idea is to ping user by input request. Input == parameters of provider
+                asset.Supplier = asset.Supplier()
+        for asset in self.assets:
+            self.assetsThreads.append(Thread(target=asset.start_cycle).start())
+
+        while True:
+            self.globalTimer.start()
+            self.search_for_trade()
+
+    def search_for_trade(self):
+        while not self.InPosition:
+            answer = None
+            while not isinstance(answer, dict):
+                answer = self.strategy.open_trade_ability()
+                if not isinstance(answer, dict):
+                    # TODO: wait on frequency
+                    pass
+            if self.debug:
+                print(f'Try {Open_position_log}{answer}')
+
+            openOrderInfo = self.make_order(orderDetails=answer, typePos='open', openDetails=None)
+            if Open_error_log not in openOrderInfo:
+                if self.debug:
+                    print(f'{Open_position_log} Success with open trade at execution time: {self.globalTimer.elapsed()}')
+                self.InPosition = True
+                self.tradingTimer.start()
+
+        if self.notificator is not None:
+            self.notificator.send_message_to_user(f"Opening:\n{json.dumps(answer)}")
+
+        # TODO fix multi-opening
+        while self.InPosition:
+            answerHold = None
+            freshData = self.download_actual_dot(self.updatableDataTime)
+            if self.debug:
+                print(freshData)
+            while not isinstance(answerHold, dict):
+                answerHold = self.strategy.close_trade_ability(openDetails=answer)
+                if not isinstance(answerHold, dict):
+                    freshData = self.download_actual_dot(self.updatableDataTime)
+                    if self.debug:
+                        print(f"{freshData}")
+            if self.debug:
+                print(f"{Close_position_log}{answerHold}")
+
+            closeOrderInfo = self.make_order(orderDetails=answerHold, typePos='close', openDetails=answer)
+            if Close_error_log not in closeOrderInfo:
+                if self.debug:
+                    print(f"{Close_position_log} Success with close trade at execution time: {self.globalTimer.elapsed()}")
+                self.InPosition = False
+                self.tradingTimer.stop()
+
+        TradeDetails = {**answer, **answerHold}
+
+        if answer['typeOperation'] == 'BUY':
+            TradeDetails['pct_change'] = (TradeDetails['closePrice'] - TradeDetails['openPrice'])\
+                                         / TradeDetails['openPrice']
+        if answer['typeOperation'] == 'SELL':
+            TradeDetails['pct_change'] = (TradeDetails['openPrice'] - TradeDetails['closePrice'])\
+                                         / TradeDetails['openPrice']
+
+        if self.notificator is not None:
+            if TradeDetails['pct_change'] > 0:
+                self.notificator.send_message_to_user(f"✅ Close:\n{json.dumps(TradeDetails)}")
+            else:
+                self.notificator.send_message_to_user(f"🔴 Close:\n{json.dumps(TradeDetails)}")
+
+        if self.statistics_collector is not None:
+            self.statistics_collector.add_trade_line(TradeDetails)
 
 
