@@ -1,0 +1,26 @@
+.topic-block {
+    margin: 20px;
+    border-radius: 10px;
+    background-color: #b6effb;
+    display: inline-block;
+    padding: 20px;
+}
+.topic-header {
+}
+.topic-name {
+    font-weight: bold;
+}
+.topic-content {
+    font-weight: lighter;
+}
+.topic-stat {
+    margin-top: 40px;
+}
+.topic-tags {
+    color: #0a58ca;
+    font-weight: normal;
+    text-decoration: underline black;
+}
+.topic-users {
+    font-weight: normal;
+}

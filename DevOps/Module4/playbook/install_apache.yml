@@ -1,0 +1,22 @@
+---
+
+- hosts: all #all hosts
+  become: true #sudo
+  tasks:
+
+    - name: install apache2 package # install apache2 server cmd
+      apt:  # == apt-get
+        name: apache2 # what we need to install
+        state: latest # version that need to be installed
+
+    - name: start apache2 # starting service
+      service:  # service cmd
+        name: apache2 # what server needed to be started
+        enabled: true
+        state: started # condition of service
+
+    - name: copy index.html file # coping html
+      copy: # cmd copy
+        src: index.html # what to copy (where)
+        dest: /var/www/html/index.html # where to paste
+

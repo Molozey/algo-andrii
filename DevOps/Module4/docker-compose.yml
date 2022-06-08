@@ -1,0 +1,61 @@
+services:
+  server1:
+    build: ubuntuPath
+    container_name: server1
+    stdin_open: true
+    tty: true
+    ports:
+      - "52022:22"
+      - "8082:80"
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.2
+
+
+  server2:
+    build: ubuntuPath
+    container_name: server2
+    stdin_open: true
+    tty: true
+    ports:
+      - "52023:22"
+      - "8083:80"
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.3
+
+
+  server3:
+    build: ubuntuPath
+    container_name: server3
+    stdin_open: true
+    tty: true
+    ports:
+      - "52024:22"
+      - "8084:80"
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.4
+
+
+  work_place:
+    build: ./work_space
+    container_name: work_space
+    stdin_open: true
+    tty: true
+    ports:
+      - "52025:22"
+      - "8085:80"
+    volumes:
+    - /Users/molozey/Desktop/DiveIntoPython/DevOps/Module4/playbook:/scripts
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.5
+
+networks:
+  vpcbr:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1

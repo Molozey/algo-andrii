@@ -1,0 +1,7 @@
+- hosts: all #all hosts
+  become: true #sudo
+  tasks:
+    - name: stop apache2
+      service:
+        name: apache2
+        state: stopped

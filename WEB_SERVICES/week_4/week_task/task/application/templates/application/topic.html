@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load static %}
+{% block page_title %}Django testing: Got an error...{% endblock %}
+{% block styles %}
+    <link rel="stylesheet" type="text/css" href="{% static 'application/css/detail.css' %}">
+{% endblock %}
+{% block content %}
+<hr style="border: none; /* Убираем границу для браузера Firefox */
+    color: yellow; /* Цвет линии для остальных браузеров */
+    background-color: teal; /* Цвет линии для браузера Firefox и Opera */
+    height: 5px; /* Толщина линии */">
+
+<div class="container-fluid pretty_margins">
+    <div class="row">
+        <div class="col-8">
+            <div class="container">
+                <div class="row">
+                    {% include 'application/topic_header.html' %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-4">
+            <div class="container">
+                <div class="row">
+                    <h4>Popular Tags</h4>
+                    <h6><a href="#">coursera</a> <a href="#">python</a> <a href="#">mysql</a> <a href="#">django</a></h6>
+                </div>
+                <div class="row pretty_margins">
+                    <h3>Popular members</h3>
+                    <p><a href="#">Mr.Freeman</a></p>
+                    <p><a href="#">Dr.House</a></p>
+                    <p><a href="#">Bender</a></p>
+                    <p><a href="#">Queen Victoria</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'application/comments.html' %}
+
+{% endblock %}

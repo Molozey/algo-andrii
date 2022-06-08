@@ -1,0 +1,16 @@
+{% load static %}
+<div class="topic-list">
+    {% for topic in topics %}
+        <div class="topic-list__item">
+            <h4><a href="{% url 'topic_details' topic.pk %}">{{ topic.title }}</a></h4>
+            <h6>Категория ({{ topic.categories__count }}):
+                {% for category in topic.categories.all %}
+                {{ category.title}}
+                {% if not forloop.last %}, {% endif %}
+                {% endfor %}</h6>
+            <p>{{ topic.body }}</p>
+            <a href="{% url 'topic_details' topic.pk %}" class="btn btn-outline-primary">More ...</a>
+        </div>
+    {% endfor %}
+
+</div>

@@ -1,0 +1,16 @@
+---
+
+- hosts: all
+  become: true
+  remote_user: root
+
+
+  tasks:
+    - name: start apache2
+      command: /etc/init.d/apache2 start
+
+
+    - name: copy index.html file # coping html
+      copy: # cmd copy
+        src: index.html # what to copy (where)
+        dest: /var/www/html/index.html # where to paste

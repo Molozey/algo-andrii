@@ -1,0 +1,37 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block page_title %}{% endblock %}</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'bootstrap/css/bootstrap.min.css' %}">
+    {% block styles %}{% endblock %}
+    <script type="text/javascript" src="{% static 'jquery/jquery-3.2.1.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'bootstrap/js/bootstrap.js' %}"></script>
+    {% block scripts %}{% endblock %}
+</head>
+<body>
+    <!--    Navigation Bar  -->
+    <nav class="navbar navbar-dark bg-dark">
+      <div class="container-fluid">
+          <div class="col" style="margin-left: 10px">
+            <a class="navbar-brand" href="{% url 'start_page' %}">Navbar</a>
+          </div>
+          <div class="col-6" style="margin-left: 10px">
+              <form class="d-flex" >
+                  <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
+                    <button class="btn btn-outline-success" type="submit">Search</button>
+              </form>
+          </div>
+          <div class="col" style="margin-left: 10px">
+              <a class="nav-link" href="{% url 'log_in_page' %}" style="text-align: right">log in</a>
+          </div>
+          <div class="col" style="margin-left: 10px">
+              <a class="nav-link" href="{% url 'register_page' %}">Register</a>
+          </div>
+      </div>
+    </nav>
+    <!--    Navigation Bar  -->
+    {% block content %}{% endblock %}
+</body>
+</html>

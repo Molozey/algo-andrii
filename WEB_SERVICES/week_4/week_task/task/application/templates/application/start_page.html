@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block page_title %}Start Page{% endblock %}
+{% block styles %}
+    <link rel="stylesheet" type="text/css" href='{% static "application/css/index.css" %}'>
+{% endblock %}
+{% block content %}
+    {% include "application/topic_element.html" %}
+{% endblock %}
